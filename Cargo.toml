@@ -1,0 +1,3 @@
+[workspace]
+members = ["mmx-core","mmx-cli"]
+resolver = "2"

@@ -1,0 +1,106 @@
+// 0BSD
+use anyhow::Result;
+
+#[derive(Debug, Clone)]
+pub struct RunOptions {
+    pub input: String,
+    pub output: String,
+    pub backend: String,          // "mock" | "gst" | "vt" | "vaapi" | "nvenc" | "qsv"
+    pub graph: Option<String>,    // ffmpeg-like filtergraph
+    pub graph_json: Option<String>,
+    pub cfr: bool,
+    pub fps: Option<u32>,
+    pub propagate_color: bool,
+    pub detect_bt2020_pq: bool,
+    pub subtitles_mode: Option<String>, // "list"|"copy"|"convert:ass->webvtt"|"burn"
+    pub streaming_mode: Option<String>, // "rtmp"|"srt"|"whip"|"hls-ll"|"dash-live"
+    pub zero_copy: bool,
+    pub gpu_preset: Option<String>,
+    pub resume: bool,
+    pub progress: bool,
+    /// NEW: actually run the pipeline instead of just printing it
+    pub execute: bool,
+    /// Optional manifest path
+    pub manifest: Option<std::path::PathBuf>,
+    /// Emit JSONL progress on stdout
+    pub progress_json: bool,
+
+}
+impl Default for RunOptions {
+    fn default() -> Self {
+        Self {
+            input: String::new(),
+            output: String::new(),
+            backend: "mock".into(),
+            graph: None, graph_json: None,
+            cfr: false, fps: None,
+            propagate_color: true, detect_bt2020_pq: true,
+            subtitles_mode: None, streaming_mode: None,
+            zero_copy: false, gpu_preset: None,
+            resume: true, progress: true,
+            execute: false,
+            // Tier-0 fields (job manifest + progress JSON)
+            manifest: None,
+            progress_json: false,
+            // Tier-0 fields (job manifest + progress JSON)
+            // Tier-0 fields (job manifest + progress JSON)
+            // Tier-0 fields (job manifest + progress JSON)
+            }
+        }
+}
+
+#[derive(Debug, Clone)]
+pub struct QcOptions {
+    pub ref_path: String,
+    pub dist_path: String,
+    pub want_psnr: bool,
+    pub want_ssim: bool,
+    pub want_vmaf: bool,
+}
+
+pub trait Backend {
+    fn name(&self) -> &'static str;
+    fn run(&self, opts: &RunOptions) -> Result<()>;
+    fn probe(&self, path: &str) -> Result<crate::probe::ProbeReport>;
+    fn qc(&self, _opts: &QcOptions) -> Result<crate::qc::QcReport> {
+        Ok(crate::qc::QcReport {
+            psnr: None, ssim: None, vmaf: None,
+            details: "QC not implemented for this backend; returning None".into()
+        })
+    }
+}
+
+pub struct MockBackend;
+
+impl Backend for MockBackend {
+    fn name(&self) -> &'static str { "mock" }
+    fn run(&self, opts: &RunOptions) -> Result<()> {
+        println!("[mock] RUN planning:");
+        println!("  input={} output={}", opts.input, opts.output);
+        println!("  backend={} zero_copy={} gpu_preset={:?}", opts.backend, opts.zero_copy, opts.gpu_preset);
+        println!("  graph={:?} graph_json-len={}", opts.graph, opts.graph_json.as_ref().map(|s| s.len()).unwrap_or(0));
+        println!("  cfr={} fps={:?}", opts.cfr, opts.fps);
+        println!("  color_propagation={} detect_bt2020_pq={}", opts.propagate_color, opts.detect_bt2020_pq);
+        println!("  subtitles_mode={:?} streaming_mode={:?}", opts.subtitles_mode, opts.streaming_mode);
+        println!("  resume={} progress={}", opts.resume, opts.progress);
+        println!("(No real media pipeline in 'mock' backend.)");
+        Ok(())
+    }
+    fn probe(&self, path: &str) -> Result<crate::probe::ProbeReport> {
+        crate::probe::cheap_probe(path)
+    }
+    fn qc(&self, opts: &QcOptions) -> Result<crate::qc::QcReport> {
+        crate::qc::cheap_qc(opts)
+    }
+}
+
+#[cfg(feature="gst")]
+use crate::backend_gst::GstBackend;
+
+pub fn find_backend(name: &str) -> Box<dyn Backend + Send> {
+    match name {
+        #[cfg(feature="gst")]
+        "gst" => Box::new(GstBackend),
+        _ => Box::new(MockBackend),
+    }
+}

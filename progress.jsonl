@@ -1,0 +1,3 @@
+[gst] executing with pipeline:
+  filesrc location=in.mp4 ! decodebin ! videorate ! video/x-raw,framerate=30/1 ! x264enc tune=zerolatency ! mp4mux ! filesink location=out_exec.mp4
+{"duration_ns":null,"event":"progress","pct":100.0,"position_ns":null}

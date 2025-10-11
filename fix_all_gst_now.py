@@ -1,0 +1,350 @@
+#!/usr/bin/env python3
+# 0BSD — make gst build green:
+#  - add mmx-core/src/shell_escape.rs
+#  - replace mmx-core/src/backend_gst.rs with minimal gst backend (no pbutils)
+#  - install a known-good mmx-cli/src/main.rs that supports `--backend` on probe
+
+import argparse, pathlib, shutil
+
+def write_file(path: pathlib.Path, content: str):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        shutil.copy2(path, path.with_suffix(path.suffix + ".bak"))
+    path.write_text(content, encoding="utf-8")
+    print(f"[write] {path}")
+
+SHELL_ESCAPE_RS = r"""// 0BSD — tiny shell escaper (simple, safe-ish)
+pub fn escape(s: &str) -> String {
+    if s.chars().all(|c| c.is_ascii_alphanumeric() || c=='_' || c=='-' || c=='/' || c=='.' || c==':') {
+        return s.to_string();
+    }
+    let mut out = String::from("\"");
+    for ch in s.chars() {
+        match ch {
+            '"' => { out.push('\\'); out.push('"'); }
+            '\\' => { out.push('\\'); out.push('\\'); }
+            _ => out.push(ch),
+        }
+    }
+    out.push('"');
+    out
+}
+"""
+
+BACKEND_GST_RS = r"""// 0BSD — GStreamer backend (feature-gated, minimal-safe)
+#![cfg(feature = "gst")]
+
+use anyhow::Result;
+use gstreamer as gst;
+
+use crate::backend::{Backend, RunOptions, QcOptions};
+
+pub struct GstBackend;
+
+impl GstBackend {
+    fn ensure_inited() -> Result<()> {
+        // gst::init() is sufficient (is_idempotent enough for our use)
+        gst::init()?;
+        Ok(())
+    }
+
+    fn build_pipeline_string(opts: &RunOptions) -> String {
+        let mut chain = vec![format!("filesrc location={} ! decodebin", crate::shell_escape::escape(&opts.input))];
+        if opts.cfr || opts.fps.is_some() {
+            let fps = opts.fps.unwrap_or(30);
+            chain.push(format!("videorate ! video/x-raw,framerate={}/1", fps));
+        }
+        // placeholder encode/mux/sink path; swap in vtenc_h264_hw / vaapih264enc / nvh264enc later
+        chain.push("x264enc tune=zerolatency ! mp4mux ! filesink".into());
+        chain.push(format!("location={}", crate::shell_escape::escape(&opts.output)));
+        chain.join(" ! ")
+    }
+}
+
+impl Backend for GstBackend {
+    fn name(&self) -> &'static str { "gst" }
+
+    fn run(&self, opts: &RunOptions) -> Result<()> {
+        Self::ensure_inited()?;
+        let pipe = Self::build_pipeline_string(opts);
+        println!("[gst] planned pipeline:\n  {}", pipe);
+        Ok(())
+    }
+
+    fn probe(&self, path: &str) -> Result<crate::probe::ProbeReport> {
+        // Keep it stable across gstreamer versions for now; upgrade to pbutils::Discoverer later.
+        crate::probe::cheap_probe(path)
+    }
+
+    fn qc(&self, _opts: &QcOptions) -> Result<crate::qc::QcReport> {
+        Ok(crate::qc::QcReport{ psnr: None, ssim: None, vmaf: None, details: "QC via gst not implemented yet".into() })
+    }
+}
+"""
+
+CLI_MAIN_RS = r"""// 0BSD
+use anyhow::{Context, Result};
+use clap::{Parser, Subcommand, Args, ValueEnum};
+use mmx_core::{
+    HlsVariant, AudioVariant, Packager, codecs_tag, derive_bandwidth,
+    write_hls_master, write_hls_variant_playlist, write_audio_playlist, write_dash_mpd,
+    backend::{find_backend, RunOptions, QcOptions},
+    probe::{ProbeReport, PROBE_SCHEMA_VERSION},
+};
+
+#[derive(Parser)]
+#[command(name="mmx", version, about="Modern Multimedia eXchange — CLI")]
+struct Cli {
+    #[arg(long, default_value="info")]
+    log: String,
+    #[command(subcommand)]
+    cmd: Command,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    Pack(PackArgs),
+    Ladder(LadderArgs),
+    Probe(ProbeArgs),
+    Run(RunArgs),
+    Qc(QcArgs),
+}
+
+#[derive(Args)]
+struct PackArgs {
+    #[arg(long, default_value="out")] out_dir: String,
+    #[arg(long, default_value="hls-ts")] packager: String,
+    #[arg(long)] ladder: Option<String>,
+    #[arg(long)] hls_variants_json: Option<String>,
+    #[arg(long)] audio_variants_json: Option<String>,
+}
+#[derive(Args)] struct LadderArgs { #[arg(long)] ladder: String }
+
+#[derive(Clone, ValueEnum)]
+enum BackendKind { Gst, Vt, Vaapi, Nvenc, Qsv, Mock }
+impl BackendKind {
+    fn as_str(&self)->&'static str {
+        match self { Self::Gst=>"gst", Self::Vt=>"vt", Self::Vaapi=>"vaapi", Self::Nvenc=>"nvenc", Self::Qsv=>"qsv", Self::Mock=>"mock" }
+    }
+}
+
+#[derive(Args)] struct ProbeArgs { #[arg(long)] input: String, #[arg(long, value_enum, default_value="mock")] backend: BackendKind }
+
+#[derive(Args)]
+struct RunArgs {
+    #[arg(long)] input: String,
+    #[arg(long, default_value="out.mp4")] output: String,
+    #[arg(long, value_enum, default_value="mock")] backend: BackendKind,
+    #[arg(long)] graph: Option<String>,
+    #[arg(long)] graph_json: Option<String>,
+    #[arg(long)] cfr: bool,
+    #[arg(long)] fps: Option<u32>,
+    #[arg(long, default_value_t=true)] propagate_color: bool,
+    #[arg(long, default_value_t=true)] detect_bt2020_pq: bool,
+    #[arg(long)] subtitles_mode: Option<String>,
+    #[arg(long)] streaming_mode: Option<String>,
+    #[arg(long)] zero_copy: bool,
+    #[arg(long)] gpu_preset: Option<String>,
+    #[arg(long, default_value_t=true)] resume: bool,
+    #[arg(long, default_value_t=true)] progress: bool,
+}
+
+#[derive(Args)]
+struct QcArgs {
+    #[arg(long, value_name="REF_PATH")] ref_path: String,
+    #[arg(long, value_name="DIST_PATH")] dist_path: String,
+    #[arg(long)] psnr: bool,
+    #[arg(long)] ssim: bool,
+    #[arg(long)] vmaf: bool,
+}
+
+fn parse_ladder(s: &str) -> Result<Vec<(String,(u32,u32),u32)>> {
+    fn res(label:&str)->Option<(u32,u32)> {
+        match label {
+            "2160p" => Some((3840,2160)), "1440p" => Some((2560,1440)),
+            "1080p" => Some((1920,1080)), "720p"  => Some((1280,720)),
+            "540p"  => Some((960,540)),   "480p"  => Some((854,480)),
+            "360p"  => Some((640,360)),   _ => None
+        }
+    }
+    fn bw(v:&str)->Option<u32>{
+        let u=v.to_uppercase();
+        if u.ends_with('M'){ u[..u.len()-1].parse::<f32>().ok().map(|m| (m*1_000_000.0) as u32) }
+        else if u.ends_with('K'){ u[..u.len()-1].parse::<f32>().ok().map(|k| (k*1_000.0) as u32) }
+        else { v.parse::<u32>().ok() }
+    }
+    let mut out=vec![];
+    for term in s.split(',') {
+        let (label,b)=term.split_once(':').context("use label:bitrate")?;
+        let r = res(label).context("unknown rung label")?;
+        let bb = bw(b).context("bad bitrate")?;
+        out.push((label.to_string(), r, bb));
+    }
+    Ok(out)
+}
+
+fn ladder_to_variants(ladder:&str)->Result<Vec<HlsVariant>>{
+    let rows = parse_ladder(ladder)?;
+    Ok(rows.into_iter().map(|(name,res,_bw)| HlsVariant{
+        name, bandwidth: 0, res: Some(res), dir: format!("out/{}p", res.1),
+        codecs: None, vcodec: None, acodec: None, vbv_maxrate: None, vbv_bufsize: None,
+        gop: None, profile: None, encoder_family: None, abitrate: None, cmaf: None,
+    }).collect())
+}
+
+fn parse_packager(s:&str)->mmx_core::Packager{
+    match s {
+        "hls-ts" => mmx_core::Packager::HlsTs,
+        "hls-cmaf" => mmx_core::Packager::HlsCmaf,
+        "dash-cmaf" => mmx_core::Packager::DashCmaf,
+        _ => mmx_core::Packager::HlsTs
+    }
+}
+
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+    match cli.cmd {
+        Command::Pack(a) => cmd_pack(a),
+        Command::Ladder(a) => cmd_ladder(a),
+        Command::Probe(a) => cmd_probe(a),
+        Command::Run(a) => cmd_run(a),
+        Command::Qc(a) => cmd_qc(a),
+    }
+}
+
+fn cmd_ladder(a: LadderArgs) -> Result<()> {
+    let vars = ladder_to_variants(&a.ladder)?;
+    println!("Expanded ladder:");
+    for v in vars { println!("  {}  dir={}  res={:?}", v.name, v.dir, v.res); }
+    Ok(())
+}
+
+fn cmd_probe(a: ProbeArgs) -> Result<()> {
+    let be = find_backend(a.backend.as_str());
+    let rep: ProbeReport = be.probe(&a.input)?;
+    println!("{}", serde_json::to_string_pretty(&rep)?);
+    Ok(())
+}
+
+fn cmd_run(a: RunArgs) -> Result<()> {
+    let mut opts = RunOptions::default();
+    opts.input = a.input; opts.output = a.output; opts.backend = a.backend.as_str().to_string();
+    opts.graph = a.graph; opts.graph_json = a.graph_json; opts.cfr = a.cfr; opts.fps = a.fps;
+    opts.propagate_color = a.propagate_color; opts.detect_bt2020_pq = a.detect_bt2020_pq;
+    opts.subtitles_mode = a.subtitles_mode; opts.streaming_mode = a.streaming_mode;
+    opts.zero_copy = a.zero_copy; opts.gpu_preset = a.gpu_preset; opts.resume = a.resume; opts.progress = a.progress;
+    let be = find_backend(&opts.backend);
+    be.run(&opts)
+}
+
+fn cmd_qc(a: QcArgs) -> Result<()> {
+    let be = find_backend("mock");
+    let rep = be.qc(&QcOptions{
+        ref_path: a.ref_path, dist_path: a.dist_path,
+        want_psnr: a.psnr, want_ssim: a.ssim, want_vmaf: a.vmaf,
+    })?;
+    println!("{}", serde_json::to_string_pretty(&rep)?);
+    Ok(())
+}
+
+fn cmd_pack(a: PackArgs) -> Result<()> {
+    let mut variants: Vec<HlsVariant> = if let Some(j) = a.hls_variants_json.as_ref() {
+        serde_json::from_str(j).context("--hls-variants-json bad JSON")?
+    } else if let Some(l) = a.ladder.as_ref() {
+        ladder_to_variants(l)?
+    } else {
+        ladder_to_variants("720p:3M,480p:1.6M")?
+    };
+    let audios: Vec<AudioVariant> = if let Some(j) = a.audio_variants_json.as_ref() {
+        serde_json::from_str(j).context("--audio-variants-json bad JSON")?
+    } else { vec![] };
+
+    let packager = parse_packager(&a.packager);
+
+    let mut built_video: Vec<(String,u32,Option<(u32,u32)>,String,String,Option<String>,bool)> = vec![];
+    for v in &mut variants {
+        if let mmx_core::Packager::HlsCmaf = packager { if v.cmaf.is_none() { v.cmaf = Some(true); } }
+        let vcodec = v.vcodec.clone().unwrap_or_else(|| "h264".into());
+        let acodec = v.acodec.clone().unwrap_or_else(|| "aac".into());
+        let abitrate = v.abitrate.unwrap_or(128_000);
+        if v.bandwidth == 0 {
+            let enc_bitrate = v.vbv_maxrate;
+            v.bandwidth = mmx_core::derive_bandwidth(v.vbv_maxrate, enc_bitrate, Some(abitrate), v.res);
+        }
+        let codecs = v.codecs.clone().unwrap_or_else(|| mmx_core::codecs_tag(&vcodec, &acodec, v.profile.as_deref()));
+        built_video.push((v.name.clone(), v.bandwidth, v.res, v.dir.clone(), codecs, None::<String>, v.cmaf.unwrap_or(false)));
+    }
+    let mut built_audio: Vec<(String,String,String,bool,String,String)> = vec![];
+    if !audios.is_empty() {
+        let group = audios.first().map(|a| a.group.clone()).unwrap_or_else(|| "aud_stereo".into());
+        for b in &mut built_video { b.5 = Some(group.clone()); }
+        for adef in &audios {
+            let dir = std::path::Path::new(&adef.dir);
+            mmx_core::write_audio_playlist(dir, &adef.name)?;
+            built_audio.push((adef.group.clone(), adef.name.clone(), adef.lang.clone(), adef.default, adef.dir.clone(), format!("{}.m3u8", adef.name)));
+        }
+    }
+    let out_root = std::path::Path::new(&a.out_dir);
+    match packager {
+        mmx_core::Packager::HlsTs => {
+            for (name, _bw, _res, dir, _codecs, _ag, _cmaf) in &built_video {
+                let vdir = out_root.join(dir); mmx_core::write_hls_variant_playlist(&vdir, name, false)?;
+            }
+            let master_path = out_root.join("master.m3u8");
+            let shaped: Vec<_> = built_video.iter().map(|b| (b.0.clone(), b.1, b.2, b.3.clone(), b.4.clone(), b.5.clone())).collect();
+            mmx_core::write_hls_master(&master_path, &shaped, &built_audio)?;
+        }
+        mmx_core::Packager::HlsCmaf => {
+            for (name, _bw, _res, dir, _codecs, _ag, _cmaf) in &built_video {
+                let vdir = out_root.join(dir); mmx_core::write_hls_variant_playlist(&vdir, name, true)?;
+            }
+            let master_path = out_root.join("master.m3u8");
+            let shaped: Vec<_> = built_video.iter().map(|b| (b.0.clone(), b.1, b.2, b.3.clone(), b.4.clone(), b.5.clone())).collect();
+            mmx_core::write_hls_master(&master_path, &shaped, &built_audio)?;
+        }
+        mmx_core::Packager::DashCmaf => {
+            let v_reps: Vec<_> = built_video.iter().map(|b| (b.0.clone(), b.1, b.2, b.3.clone(), b.4.clone())).collect();
+            for (_n,_bw,_r,dir,_c) in &v_reps { std::fs::create_dir_all(out_root.join(dir))?; }
+            let a_rep = built_audio.first().map(|(_g,n,_lang,_def,dir,_file)| (n.clone(), 128_000u32, dir.clone()));
+            let mpd = out_root.join("manifest.mpd");
+            mmx_core::write_dash_mpd(&mpd, &v_reps, a_rep)?;
+        }
+    }
+    println!("ABR validation report:");
+    println!("  Packager: {}", a.packager);
+    for (name, bw, res, dir, codecs, ag, cmaf) in &built_video {
+        let res_s = res.map(|(w,h)| format!("{}x{}", w,h)).unwrap_or_else(|| "-".into());
+        let ags = ag.clone().unwrap_or_else(|| "-".into());
+        println!("  - {name:<8} bw={bw} res={res_s:<10} dir={dir:<20} codecs={codecs} audio_group={ags} cmaf={cmaf}");
+    }
+    if !built_audio.is_empty() {
+        println!("  Audio groups:");
+        for (g,n,lang,def,dir,file) in &built_audio {
+            println!("  - group={g} name={n} lang={lang} default={} uri={}/{}", if *def {"YES"} else {"NO"}, dir, file);
+        }
+    }
+    println!("Outputs written under: {}", out_root.display());
+    Ok(())
+}
+"""
+
+def main():
+    import sys
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--dir", required=True)
+    args = ap.parse_args()
+    root = pathlib.Path(args.dir).resolve()
+
+    write_file(root/"mmx-core"/"src"/"shell_escape.rs", SHELL_ESCAPE_RS)
+    write_file(root/"mmx-core"/"src"/"backend_gst.rs", BACKEND_GST_RS)
+    write_file(root/"mmx-cli"/"src"/"main.rs", CLI_MAIN_RS)
+
+    print("\n[ok] Files written. Now rebuild:")
+    print("  cd", root)
+    print("  cargo build")
+    print("  cargo build -p mmx-cli -F mmx-core/gst")
+    print("  target/debug/mmx probe --backend gst --input ./LICENSE")
+    print("  target/debug/mmx run --backend gst --input in.mp4 --output out.mp4 --cfr --fps 30")
+
+if __name__ == "__main__":
+    main()

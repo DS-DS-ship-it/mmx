@@ -1,0 +1,136 @@
+
+// 0BSD — GStreamer backend (feature-gated)
+#![cfg(feature = "gst")]
+
+use anyhow::{anyhow, Result};
+use gstreamer as gst;
+use gstreamer::prelude::*;
+use gstreamer_pbutils as pbutils;
+use gstreamer_video as gst_video;
+
+use crate::backend::{Backend, RunOptions, QcOptions};
+use crate::probe::{self, ProbeReport, FormatInfo, StreamInfo, VideoStreamInfo, AudioStreamInfo, SubtitleStreamInfo};
+use std::collections::BTreeMap;
+
+pub struct GstBackend;
+
+impl GstBackend {
+    fn ensure_inited() -> Result<()> {
+        if gst::is_initialized() { return Ok(()); }
+        gst::init()?;
+        Ok(())
+    }
+
+    fn discover(path: &str) -> Result<ProbeReport> {
+        Self::ensure_inited()?;
+        let disc = pbutils::Discoverer::new(gst::ClockTime::from_seconds(15))
+            .map_err(|e| anyhow!("{e:?}"))?;
+        let info = disc.discover_uri(&format!("file://{}", path))?;
+        let uri = info.uri().unwrap_or_default().to_string();
+
+        let mut tags = BTreeMap::new();
+        tags.insert("source".into(), "gstreamer-discoverer".into());
+
+        let duration = info.duration().map(|d| d.nseconds() as f64 / 1_000_000_000.0);
+        let container = info.container_info()
+            .and_then(|c| c.get_caps())
+            .and_then(|caps| caps.structure(0))
+            .map(|s| s.name().to_string())
+            .unwrap_or_else(|| "unknown".into());
+
+        let mut streams = Vec::<StreamInfo>::new();
+        for s in info.stream_info_list() {
+            match s {
+                pbutils::DiscovererStreamInfo::Video(vi) => {
+                    let caps = vi.get_caps();
+                    let codec = caps.as_ref()
+                        .and_then(|c| c.structure(0))
+                        .map(|st| st.name().to_string())
+                        .unwrap_or_else(|| "video/unknown".into());
+                    let mut w = 0u32;
+                    let mut h = 0u32;
+                    let mut fps = None;
+                    if let Some(vinfo) = vi.video_info() {
+                        w = vinfo.width();
+                        h = vinfo.height();
+                        if let Some(fr) = vinfo.fps() {
+                            fps = Some(fr.numer() as f64 / fr.denom() as f64);
+                        }
+                    }
+                    let mut tags_map = BTreeMap::new();
+                    if let Some(t) = vi.tags() {
+                        t.iter().for_each(|(k,v)| { tags_map.insert(k.to_string(), v.to_string()); });
+                    }
+                    streams.push(StreamInfo::Video(VideoStreamInfo {
+                        index: 0, codec, width: w, height: h,
+                        fps, color_primaries: None, color_trc: None,
+                        color_matrix: None, hdr: None, tags: tags_map,
+                    }));
+                }
+                pbutils::DiscovererStreamInfo::Audio(ai) => {
+                    let caps = ai.get_caps();
+                    let codec = caps.as_ref()
+                        .and_then(|c| c.structure(0))
+                        .map(|st| st.name().to_string())
+                        .unwrap_or_else(|| "audio/unknown".into());
+                    let mut tags_map = BTreeMap::new();
+                    if let Some(t) = ai.tags() {
+                        t.iter().for_each(|(k,v)| { tags_map.insert(k.to_string(), v.to_string()); });
+                    }
+                    streams.push(StreamInfo::Audio(AudioStreamInfo {
+                        index: 0, codec,
+                        sample_rate: 48000, channels: 2,
+                        channel_layout: None, bit_rate: None,
+                        tags: tags_map,
+                    }));
+                }
+                _ => {}
+            }
+        }
+
+        Ok(ProbeReport {
+            schema_version: probe::PROBE_SCHEMA_VERSION.to_string(),
+            path: uri,
+            format: FormatInfo {
+                format_name: container,
+                duration_sec: duration,
+                size_bytes: None,
+                bit_rate: None,
+                tags,
+            },
+            streams,
+            chapters: vec![],
+            warnings: vec![],
+        })
+    }
+
+    fn build_pipeline_string(opts: &RunOptions) -> String {
+        let mut chain = vec![format!("filesrc location={} ! decodebin", opts.input)];
+        if opts.cfr || opts.fps.is_some() {
+            let fps = opts.fps.unwrap_or(30);
+            chain.push(format!("videorate ! video/x-raw,framerate={}/1", fps));
+        }
+        chain.push("x264enc tune=zerolatency ! mp4mux ! filesink".into());
+        chain.push(format!("location={}", opts.output));
+        chain.join(" ! ")
+    }
+}
+
+impl Backend for GstBackend {
+    fn name(&self) -> &'static str { "gst" }
+    fn run(&self, opts: &RunOptions) -> Result<()> {
+        Self::ensure_inited()?;
+        let pipe = Self::build_pipeline_string(opts);
+        println!("[gst] planned pipeline:\n  {}", pipe);
+        Ok(())
+    }
+    fn probe(&self, path: &str) -> Result<ProbeReport> {
+        Self::discover(path)
+    }
+    fn qc(&self, _opts: &QcOptions) -> Result<crate::qc::QcReport> {
+        Ok(crate::qc::QcReport {
+            psnr: None, ssim: None, vmaf: None,
+            details: "QC via gst not yet implemented".into(),
+        })
+    }
+}

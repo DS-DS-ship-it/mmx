@@ -1,0 +1,21 @@
+// 0BSD
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct QcReport {
+    pub psnr: Option<f64>,
+    pub ssim: Option<f64>,
+    pub vmaf: Option<f64>,
+    pub details: String,
+}
+
+pub fn cheap_qc(opts: &crate::backend::QcOptions) -> anyhow::Result<QcReport> {
+    let psnr = if opts.want_psnr { Some(42.0) } else { None };
+    let ssim = if opts.want_ssim { Some(0.985) } else { None };
+    #[allow(unused_variables)]
+    let vmaf = None; // add real libvmaf later under feature
+    Ok(QcReport {
+        psnr, ssim, vmaf,
+        details: "cheap_qc placeholder; enable metrics backend for real values".into(),
+    })
+}

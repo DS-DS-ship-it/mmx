@@ -1,0 +1,13 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  macos-smoke:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: brew install ffmpeg gstreamer
+      - run: cargo build -p mmx-cli -F mmx-core/gst --release
+      - run: ./target/release/mmx doctor --json || true
+      - run: ./target/release/mmx remux --input fixtures/short.mp4 --output /tmp/out.mp4 --ss 0 --to 1 --stream-map "0:v:0,0:a?,0:s?"
+      - run: ./target/release/mmx run --backend gst --input fixtures/short.mp4 --output /tmp/out_gst.mp4 --cfr --fps 30 --execute

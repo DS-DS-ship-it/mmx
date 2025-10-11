@@ -1,0 +1,83 @@
+// 0BSD
+use anyhow::Result;
+
+#[derive(Debug, Clone)]
+pub struct RunOptions {
+    pub input: String,
+    pub output: String,
+    pub backend: String,
+    pub graph: Option<String>,
+    pub graph_json: Option<String>,
+    pub cfr: bool,
+    pub fps: Option<u32>,
+    pub propagate_color: bool,
+    pub detect_bt2020_pq: bool,
+    pub subtitles_mode: Option<String>,
+    pub streaming_mode: Option<String>,
+    pub zero_copy: bool,
+    pub gpu_preset: Option<String>,
+    pub resume: bool,
+    pub progress: bool,
+}
+impl Default for RunOptions {
+    fn default() -> Self {
+        Self {
+            input: String::new(),
+            output: String::new(),
+            backend: "mock".into(),
+            graph: None, graph_json: None,
+            cfr: false, fps: None,
+            propagate_color: true, detect_bt2020_pq: true,
+            subtitles_mode: None, streaming_mode: None,
+            zero_copy: false, gpu_preset: None,
+            resume: true, progress: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct QcOptions {
+    pub ref_path: String,
+    pub dist_path: String,
+    pub want_psnr: bool,
+    pub want_ssim: bool,
+    pub want_vmaf: bool,
+}
+
+pub trait Backend {
+    fn name(&self) -> &'static str;
+    fn run(&self, opts: &RunOptions) -> Result<()>;
+    fn probe(&self, path: &str) -> Result<crate::probe::ProbeReport>;
+    fn qc(&self, _opts: &QcOptions) -> Result<crate::qc::QcReport> {
+        Ok(crate::qc::QcReport { psnr: None, ssim: None, vmaf: None, details: "QC not implemented; returning None".into() })
+    }
+}
+
+pub struct MockBackend;
+impl Backend for MockBackend {
+    fn name(&self) -> &'static str { "mock" }
+    fn run(&self, opts: &RunOptions) -> Result<()> {
+        println!("[mock] RUN planning:");
+        println!("  input={} output={}", opts.input, opts.output);
+        println!("  backend={} zero_copy={} gpu_preset={:?}", opts.backend, opts.zero_copy, opts.gpu_preset);
+        println!("  graph={:?} graph_json-len={}", opts.graph, opts.graph_json.as_ref().map(|s| s.len()).unwrap_or(0));
+        println!("  cfr={} fps={:?}", opts.cfr, opts.fps);
+        println!("  color_propagation={} detect_bt2020_pq={}", opts.propagate_color, opts.detect_bt2020_pq);
+        println!("  subtitles_mode={:?} streaming_mode={:?}", opts.subtitles_mode, opts.streaming_mode);
+        println!("  resume={} progress={}", opts.resume, opts.progress);
+        println!("(No real media pipeline in 'mock' backend.)");
+        Ok(())
+    }
+    fn probe(&self, path: &str) -> Result<crate::probe::ProbeReport> {
+        crate::probe::cheap_probe(path)
+    }
+    fn qc(&self, opts: &QcOptions) -> Result<crate::qc::QcReport> {
+        crate::qc::cheap_qc(opts)
+    }
+}
+
+pub fn find_backend(name: &str) -> Box<dyn Backend + Send> {
+    match name {
+        _ => Box::new(MockBackend),
+    }
+}
