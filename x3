@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# End-to-end sale → webhook → revenue → payout (destination charge with app fee)
+
+: "${BASE_URL:=http://localhost:3000}"
+: "${GITHUB_LOGIN:=DS-DS-ship-it}"
+: "${AMOUNT:=12000}"          # total charge in cents
+: "${APP_FEE:=2000}"          # platform fee in cents
+: "${POOL_PERCENT:=30}"       # pool % of recorded revenue to distribute
+
+command -v jq >/dev/null || { echo "jq required"; exit 1; }
+command -v stripe >/dev/null || { echo "stripe CLI required"; exit 1; }
+
+# Ensure Stripe webhook listener is running; capture secret if missing
+if ! pgrep -fl "stripe listen" >/dev/null 2>&1; then
+  export STRIPE_WEBHOOK_SECRET="REDACTED""
+  nohup stripe listen --forward-to "$BASE_URL/webhook/stripe" >/tmp/stripe_listen.log 2>&1 &
+  sleep 1
+fi
+
+# Pick first connected account from server
+ACCT="$(curl -sS "$BASE_URL/contributors" | jq -r 'map(select(.stripe_account_id!=null))|.[0].stripe_account_id // empty')"
+[ -n "$ACCT" ] || { echo "no connected account on server"; exit 1; }
+
+# Create PaymentIntent: destination charge + application fee + seller metadata
+stripe payment_intents create \
+  --amount "$AMOUNT" \
+  --currency usd \
+  --payment-method pm_card_visa \
+  --confirm \
+  --application-fee-amount "$APP_FEE" \
+  --transfer-data[destination]="$ACCT" \
+  --metadata[seller_github]="$GITHUB_LOGIN" \
+  >/tmp/mmx_pi.json
+
+# Record revenue for current period
+PERIOD="$(curl -sS "$BASE_URL/periods/latest" | jq -r .period)"
+curl -sS -X POST "$BASE_URL/revenue" \
+  -H 'content-type: application/json' \
+  -d "{\"period\":\"$PERIOD\",\"amount_cents\":$AMOUNT}" >/dev/null
+
+# Distribute payouts from pool
+curl -sS -X POST "$BASE_URL/distribute_payouts" \
+  -H 'content-type: application/json' \
+  -d "{\"period\":\"$PERIOD\",\"pool_percent\":$POOL_PERCENT}"
+echo

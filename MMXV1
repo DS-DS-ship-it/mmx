@@ -1,0 +1,35 @@
+#!/bin/bash
+set -euo pipefail
+
+OWNER="DS-DS-ship-it"
+REPO="mmx"
+
+gh repo edit "$OWNER/$REPO" \
+  --description "MMX — Open-Core media engine built in Rust (FFmpeg alternative)" \
+  --add-topic "rust,ffmpeg,video,encoding,cli,open-core,transcoding,ai" \
+  --enable-discussions=true
+
+mkdir -p .github
+printf '%s\n' \
+'github: [DS-DS-ship-it]' \
+'custom:' \
+'  - https://buy.stripe.com' > .github/FUNDING.yml
+git add .github/FUNDING.yml
+git commit -m "Add funding links" || true
+git push -u origin "$(git rev-parse --abbrev-ref HEAD)"
+
+CAT_NAME="$(gh discussion categories --repo "$OWNER/$REPO" --limit 1 --json name --jq '.[0].name' 2>/dev/null || true)"
+if [[ -n "${CAT_NAME:-}" ]]; then
+  gh discussion create --repo "$OWNER/$REPO" \
+    --title "🚀 Welcome to MMX Open-Core" \
+    --category "$CAT_NAME" \
+    --body "Share ideas, extensions, and feedback on the new MMX release!"
+else
+  gh issue create --repo "$OWNER/$REPO" \
+    --title "🚀 Welcome to MMX Open-Core" \
+    --body "Discussions could not be created automatically. Share ideas, extensions, and feedback on the new MMX release!"
+fi
+
+echo "Repo: https://github.com/$OWNER/$REPO"
+echo "Discussions: https://github.com/$OWNER/$REPO/discussions"
+echo "Issues: https://github.com/$OWNER/$REPO/issues"

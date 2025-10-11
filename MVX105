@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+OWNER="${OWNER:-DS-DS-ship-it}"
+REPO="${REPO:-mmx}"
+STRIPE_KEY="${STRIPE_KEY:-STRIPE_SECRET_REDACTED_stripe_secret_key}"
+PAYOUT_PERCENT="${PAYOUT_PERCENT:-30}"
+REVENUE_FILE="${REVENUE_FILE:-revenue/monthly_revenue.csv}"
+
+mkdir -p revenue logs
+[[ -f "$REVENUE_FILE" ]] || { echo "date,amount" > "$REVENUE_FILE"; }
+
+TMP_JSON="$(mktemp)"
+TMP_PAYOUTS="$(mktemp)"
+
+gh api "repos/$OWNER/$REPO/contributors?per_page=100" --jq '.[] | {login: .login, contributions: .contributions}' > "$TMP_JSON"
+
+TOTAL_REVENUE="$(awk -F, 'NR>1 {sum+=$2} END {if(sum=="") sum=0; print sum}' "$REVENUE_FILE")"
+SHARE_POOL="$(printf '%.2f' "$(echo "$TOTAL_REVENUE * $PAYOUT_PERCENT / 100" | bc -l)")"
+CONTRIB_TOTAL="$(jq '[.[].contributions] | add // 0' "$TMP_JSON")"
+
+jq --argjson pool "$SHARE_POOL" --argjson total "$CONTRIB_TOTAL" '
+  (if $total == 0 then [] else
+    map({login, contributions, share: ((.contributions / $total) * $pool)})
+  end)
+' "$TMP_JSON" > "$TMP_PAYOUTS"
+
+DATE_TAG="$(date +%Y-%m)"
+LOG_CSV="logs/payouts_${DATE_TAG}.csv"
+echo "login,contributions,usd" > "$LOG_CSV"
+
+jq -c '.[]' "$TMP_PAYOUTS" | while read -r row; do
+  LOGIN="$(echo "$row" | jq -r '.login')"
+  CONTRIBS="$(echo "$row" | jq -r '.contributions')"
+  AMOUNT="$(printf '%.2f' "$(echo "$row" | jq -r '.share')" )"
+  [[ "$AMOUNT" == "0.00" ]] && { echo "$LOGIN,$CONTRIBS,0.00" >> "$LOG_CSV"; continue; }
+
+  CONNECT_ID="$(curl -s -H "Authorization: Bearer $STRIPE_KEY" "https://api.stripe.com/v1/accounts?limit=100" \
+    | jq -r --arg LOGIN "$LOGIN" '.data[] | select(.metadata.github==$LOGIN) | .id' | head -n1)"
+
+  if [[ -z "${CONNECT_ID:-}" ]]; then
+    echo "$LOGIN,$CONTRIBS,0.00" >> "$LOG_CSV"
+    continue
+  fi
+
+  CENTS="$(printf '%.0f' "$(echo "$AMOUNT * 100" | bc -l)")"
+
+  curl -s -X POST https://api.stripe.com/v1/transfers \
+    -u "$STRIPE_KEY:" \
+    -d amount="$CENTS" \
+    -d currency=usd \
+    -d destination="$CONNECT_ID" \
+    -d description="MMX monthly contributor payout $DATE_TAG @$LOGIN" >/dev/null
+
+  echo "$LOGIN,$CONTRIBS,$AMOUNT" >> "$LOG_CSV"
+done
+
+rm -f "$TMP_JSON" "$TMP_PAYOUTS"
+echo "$LOG_CSV"

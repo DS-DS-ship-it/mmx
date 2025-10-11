@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+set -a; [ -f .env ] && . .env; set +a
+: "${BASE_URL:=http://localhost:3000}"
+: "${STRIPE_CLIENT_ID="REDACTED""
+
+REDIRECT_URI="$BASE_URL/stripe_oauth_cb"
+printf '%s\n' "$REDIRECT_URI"
+
+if command -v open >/dev/null 2>&1; then
+  open "https://dashboard.stripe.com/test/settings/connect/onboarding-options"
+  open "https://dashboard.stripe.com/settings/connect/onboarding-options"
+fi
+
+pkill -f "node .*mmx_ops_server.js" 2>/dev/null || true
+NODE_ENV=production node mmx_ops_server.js >/tmp/mmx_ops_server.log 2>&1 &
+sleep 1
+
+curl -sSf "$BASE_URL/health" && echo
+
+GH_LOGIN="$(gh api user -q .login 2>/dev/null || echo DS-DS-ship-it)"
+echo "$BASE_URL/start_connect?github=$GH_LOGIN"
+if command -v open >/dev/null 2>&1; then
+  open "$BASE_URL/start_connect?github=$GH_LOGIN"
+fi

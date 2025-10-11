@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+
+OWNER="DS-DS-ship-it"
+REPO="mmx"
+
+gh repo edit "$OWNER/$REPO" \
+  --description "MMX — Open-Core media engine built in Rust (FFmpeg alternative)" \
+  --add-topic "rust,ffmpeg,video,encoding,cli,open-core,transcoding,ai"
+
+mkdir -p .github
+printf '%s\n' \
+'github: [DS-DS-ship-it]' \
+'custom:' \
+'  - https://buy.stripe.com' > .github/FUNDING.yml
+
+git add .github/FUNDING.yml
+git commit -m "Add funding links" || true
+git push origin "$(git rev-parse --abbrev-ref HEAD)"
+
+CAT_ID="$(gh api "repos/$OWNER/$REPO/discussions/categories" --jq '.[0].id' || echo)"
+if [[ -n "${CAT_ID:-}" ]]; then
+  gh api -X POST "repos/$OWNER/$REPO/discussions" \
+    -f title="🚀 Welcome to MMX Open-Core" \
+    -f body="Share ideas, extensions, and feedback on the new MMX release!" \
+    -f category_id="$CAT_ID"
+fi
+
+echo "Repo: https://github.com/$OWNER/$REPO"
+echo "Discussions: https://github.com/$OWNER/$REPO/discussions"

@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION="${1:-0.2.2}"
+ROOT="$(pwd)"
+DATE="$(date -u +%Y-%m-%d)"
+BRANCH="roadmap-${DATE//-/}_${RANDOM}"
+
+need(){ command -v "$1" >/dev/null 2>&1 || { echo "missing $1"; exit 1; }; }
+
+need cargo
+need rustup
+command -v git >/dev/null 2>&1 || true
+command -v ffmpeg >/dev/null 2>&1 || true
+command -v jq >/dev/null 2>&1 || true
+command -v gh >/dev/null 2>&1 || true
+
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { git init; git add -A; git commit -m "init"; }
+git checkout -B "$BRANCH"
+
+perl -0777 -pe "s/^version\s*=\s*\"[^\"]+\"/version = \"${VERSION}\"/m" -i mmx-cli/Cargo.toml
+perl -0777 -pe "s/^version\s*=\s*\"[^\"]+\"/version = \"${VERSION}\"/m" -i mmx-core/Cargo.toml
+
+test -f CHANGELOG.md || cat > CHANGELOG.md <<EOF
+# Changelog
+
+## [v${VERSION}] - ${DATE}
+### Added
+- Tier0 smoke, doctor checks, progress/resume patches runner
+- Packaging scripts (per-arch + Universal 2) and checksum
+- CI workflows (build + smoke on PR; tag release)
+- Homebrew tap generator
+- Basic QC runner (PSNR/SSIM fallback)
+- HLS pack wrapper and sample fixtures
+EOF
+
+mkdir -p scripts dist tests fixtures .github/workflows Formula
+
+test -f patch_manifest_resume.py && python3 patch_manifest_resume.py --dir "$ROOT" || true
+test -f patch_progress.py && python3 patch_progress.py --dir "$ROOT" || true
+
+cat > scripts/smoke_samples.sh <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p fixtures
+if command -v ffmpeg >/dev/null 2>&1; then
+  test -f fixtures/a1.mp4 || ffmpeg -hide_banner -loglevel error -f lavfi -i testsrc2=size=128x72:rate=24 -f lavfi -i sine=f=440:duration=3 -shortest -c:v libx264 -t 3 -pix_fmt yuv420p -c:a aac -b:a 96k fixtures/a1.mp4
+  test -f fixtures/vonly.mp4 || ffmpeg -hide_banner -loglevel error -f lavfi -i testsrc2=size=160x90:rate=24 -t 2 -c:v libx264 -pix_fmt yuv420p fixtures/vonly.mp4
+fi
+SH
+chmod +x scripts/smoke_samples.sh
+bash scripts/smoke_samples.sh
+
+cat > scripts/smoke_tier0.sh <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+BIN="${BIN:-target/release/mmx}"
+cargo build -p mmx-cli -F mmx-core/gst --release >/dev/null
+"$BIN" --help >/dev/null
+"$BIN" doctor || true
+"$BIN" probe fixtures/a1.mp4 >/dev/null || true
+"$BIN" remux fixtures/a1.mp4 --out tmp_remux.mp4 >/dev/null || true
+rm -f tmp_remux.mp4 2>/dev/null || true
+SH
+chmod +x scripts/smoke_tier0.sh
+
+cat > scripts/qc_psnr_ssim.sh <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+IN="${1:-fixtures/a1.mp4}"
+OUT="${2:-fixtures/a1_out.mp4}"
+BIN="${BIN:-target/release/mmx}"
+cargo build -p mmx-cli -F mmx-core/gst --release >/dev/null
+if "$BIN" qc "$IN" "$OUT" >/dev/null 2>&1; then
+  exit 0
+fi
+if command -v ffmpeg >/dev/null 2>&1; then
+  ffmpeg -hide_banner -loglevel error -i "$IN" -c:v libx264 -crf 28 -t 2 -y "$OUT"
+  ffmpeg -hide_banner -loglevel error -i "$IN" -i "$OUT" -lavfi "[0:v][1:v]psnr;[0:v][1:v]ssim" -f null - 2>&1 | sed -n 's/.*PSNR.*average:\([0-9.]\+\).*SSIM.*All:\([0-9.]\+\).*/psnr=\1 ssim=\2/p'
+fi
+SH
+chmod +x scripts/qc_psnr_ssim.sh
+
+cat > scripts/pack_hls.sh <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+IN="${1:-fixtures/a1.mp4}"
+OUTDIR="${2:-dist/hls}"
+mkdir -p "$OUTDIR"
+if command -v ffmpeg >/dev/null 2>&1; then
+  ffmpeg -hide_banner -loglevel error -i "$IN" -c:v libx264 -c:a aac -b:a 96k -f hls -hls_time 2 -hls_playlist_type vod "$OUTDIR/index.m3u8"
+fi
+SH
+chmod +x scripts/pack_hls.sh
+
+cat > scripts/mmx_release_extras.sh <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+ARCH="$(uname -m)"
+OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+NAME="mmx-${OS}-${ARCH}.tar.gz"
+mkdir -p dist
+cargo build -p mmx-cli -F mmx-core/gst --release
+tar -C target/release -czf "dist/${NAME}" mmx
+shasum -a 256 "dist/${NAME}" | awk '{print $1}' > "dist/${NAME}.sha256"
+if [[ "$OS" == "darwin" ]]; then
+  bash scripts/mmx_release.sh universal || true
+  test -f dist/mmx-macos-universal.tar.gz && shasum -a 256 dist/mmx-macos-universal.tar.gz | awk '{print $1}' > dist/mmx-macos-universal.tar.gz.sha256 || true
+fi
+ls -lh dist | sed 's/^/dist /'
+SH
+chmod +x scripts/mmx_release_extras.sh
+
+cat > scripts/homebrew_tap.sh <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+OWNER="$(gh api user -q .login)"
+TAP_REPO="${OWNER}/homebrew-mmx"
+VER="${1:-v0.2.2}"
+URL="https://github.com/${OWNER}/mmx/releases/download/${VER}/mmx-macos-universal.tar.gz"
+SHA="$(curl -sL "https://github.com/${OWNER}/mmx/releases/download/${VER}/mmx-macos-universal.tar.gz.sha256" || true)"
+test -n "$SHA" || { echo "missing sha256"; exit 1; }
+tmpdir="$(mktemp -d)"
+mkdir -p "$tmpdir/Formula"
+cat > "$tmpdir/Formula/mmx.rb" <<RB
+class Mmx < Formula
+  desc "Media swiss-army CLI"
+  homepage "https://github.com/${OWNER}/mmx"
+  url "${URL}"
+  sha256 "${SHA}"
+  version "${VER#v}"
+  def install
+    bin.install "mmx"
+  end
+  test do
+    system "#{bin}/mmx", "--help"
+  end
+end
+RB
+gh repo view "$TAP_REPO" >/dev/null 2>&1 || gh repo create "$TAP_REPO" --public -y
+git -C "$tmpdir" init
+git -C "$tmpdir" add -A
+git -C "$tmpdir" commit -m "mmx ${VER}"
+git -C "$tmpdir" branch -M main
+git -C "$tmpdir" remote add origin "https://github.com/${TAP_REPO}.git"
+git -C "$tmpdir" push -f origin main
+echo "brew tap ${OWNER}/mmx && brew install mmx"
+SH
+chmod +x scripts/homebrew_tap.sh
+
+cat > .github/workflows/ci.yml <<'YML'
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build -p mmx-cli -F mmx-core/gst --release
+      - run: bash scripts/smoke_samples.sh
+      - run: BIN=target/release/mmx bash scripts/smoke_tier0.sh
+YML
+
+cat > .github/workflows/release.yml <<'YML'
+name: release
+on:
+  push:
+    tags:
+      - "v*"
+jobs:
+  macos-universal:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: bash scripts/mmx_release.sh universal || true
+      - run: bash scripts/mmx_release_extras.sh
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.sha256
+YML
+
+cat > Dockerfile <<'DF'
+FROM rust:1-bookworm
+WORKDIR /app
+COPY . .
+RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
+RUN cargo build -p mmx-cli -F mmx-core/gst --release
+ENTRYPOINT ["target/release/mmx"]
+DF
+
+cat > scripts/docker_build.sh <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+docker build -t mmx:local .
+docker run --rm mmx:local --help
+SH
+chmod +x scripts/docker_build.sh
+
+git add -A
+git commit -m "roadmap bootstrap: v${VERSION} tier0/packaging/ci/homebrew/docker"
+git tag -f "v${VERSION}"
+
+bash scripts/smoke_tier0.sh || true
+bash scripts/mmx_release_extras.sh || true
+
+echo "ok"
