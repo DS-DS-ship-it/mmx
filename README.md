@@ -25,3 +25,5 @@ Opt-in only: set `MMX_TELEMETRY=on`. Captures command, exit, duration (no paths)
 
 ## License
 Core is MIT. Pro is commercial.
+
+[![Sponsor](https://img.shields.io/badge/Sponsor-MMX-orange)](https://buy.stripe.com)
