@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# save as: scripts/finish_release.sh
+set -euo pipefail
+
+export PATH="$HOME/.cargo/bin:$PATH"
+root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$root"
+
+echo "[1/6] Fix + lint"
+cargo fix --allow-dirty --allow-staged -p mmx-core || true
+cargo clippy -p mmx-core -p mmx-cli --release || true
+
+echo "[2/6] Apply patches (if present)"
+[ -f patch_manifest_resume.py ] && python3 patch_manifest_resume.py --dir "$root" || true
+[ -f patch_progress.py ]        && python3 patch_progress.py        --dir "$root" || true
+
+echo "[3/6] Build aarch64 + x86_64 + Universal"
+rustup target add aarch64-apple-darwin x86_64-apple-darwin >/dev/null 2>&1 || true
+if [[ -x scripts/env_arch.sh ]]; then
+  scripts/env_arch.sh aarch64-apple-darwin -- cargo build -p mmx-cli -F mmx-core/gst --release --target aarch64-apple-darwin
+  scripts/env_arch.sh x86_64-apple-darwin  -- cargo build -p mmx-cli -F mmx-core/gst --release --target x86_64-apple-darwin
+else
+  cargo build -p mmx-cli -F mmx-core/gst --release --target aarch64-apple-darwin
+  cargo build -p mmx-cli -F mmx-core/gst --release --target x86_64-apple-darwin
+fi
+
+mkdir -p target/universal-apple-darwin/release dist
+arm_bin=""
+x64_bin=""
+for c in mmx mmx-cli; do
+  [[ -x "target/aarch64-apple-darwin/release/$c" ]] && arm_bin="target/aarch64-apple-darwin/release/$c"
+  [[ -x "target/x86_64-apple-darwin/release/$c"   ]] && x64_bin="target/x86_64-apple-darwin/release/$c"
+done
+[[ -n "$arm_bin" && -n "$x64_bin" ]] || { echo "[fail] missing built binaries"; exit 1; }
+
+lipo -create -output target/universal-apple-darwin/release/mmx "$arm_bin" "$x64_bin"
+chmod +x target/universal-apple-darwin/release/mmx
+lipo -info target/universal-apple-darwin/release/mmx
+
+echo "[4/6] Package + checksums"
+tar -C target/universal-apple-darwin/release -czf dist/mmx-macos-universal.tar.gz mmx
+shasum -a 256 dist/mmx-macos-universal.tar.gz | awk '{print $1}' > dist/mmx-macos-universal.tar.gz.sha256
+echo "[ok] dist/mmx-macos-universal.tar.gz"
+[[ -f dist/mmx-sdk.tar.gz ]] || { mkdir -p sdk && cp -r mmx-core mmx-cli sdk/ && tar -czf dist/mmx-sdk.tar.gz sdk; }
+shasum -a 256 dist/mmx-sdk.tar.gz | awk '{print $1}' > dist/mmx-sdk.tar.gz.sha256
+
+echo "[5/6] Smoke"
+target/universal-apple-darwin/release/mmx --help >/dev/null
+target/universal-apple-darwin/release/mmx doctor || true
+arch -arm64  target/universal-apple-darwin/release/mmx --help >/dev/null
+arch -x86_64 target/universal-apple-darwin/release/mmx --help >/dev/null || true
+
+echo "[6/6] Tag + (optional) GitHub release"
+ver="0.2.2"
+sed -i '' -e 's/^version *= *.*/version = "0.2.2"/' mmx-cli/Cargo.toml
+git add -A
+git commit -m "Release v${ver}" || true
+git tag -f "v${ver}"
+git push -u origin "$(git rev-parse --abbrev-ref HEAD)" --tags || true
+
+if command -v gh >/dev/null 2>&1; then
+  gh release view "v${ver}" >/dev/null 2>&1 || gh release create "v${ver}" \
+    dist/mmx-macos-universal.tar.gz \
+    dist/mmx-macos-universal.tar.gz.sha256 \
+    dist/mmx-sdk.tar.gz \
+    dist/mmx-sdk.tar.gz.sha256 \
+    -t "MMX v${ver}" -n "Universal macOS build + SDK"
+fi
+
+echo "[done] Universal + SDK ready in dist/"

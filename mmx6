@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# save as: scripts/fix_target_and_build_universal.sh
+set -euo pipefail
+
+# ensure rustup/cargo from rustup
+export PATH="$HOME/.cargo/bin:$PATH"
+if ! command -v rustup >/dev/null 2>&1; then
+  curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
+  source "$HOME/.cargo/env"
+fi
+
+rustup toolchain install stable >/dev/null 2>&1 || true
+rustup default stable >/dev/null 2>&1 || true
+rustup override set stable >/dev/null 2>&1 || true
+
+# add macOS targets
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+# repo root (must contain mmx-cli/Cargo.toml)
+root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+[[ -f "$root/mmx-cli/Cargo.toml" ]] || { echo "[fail] no mmx-cli/Cargo.toml in $root"; exit 1; }
+cd "$root"
+
+# build arm64
+if [[ -x scripts/env_arch.sh ]]; then
+  scripts/env_arch.sh aarch64-apple-darwin -- cargo build -p mmx-cli -F mmx-core/gst --release --target aarch64-apple-darwin
+else
+  cargo build -p mmx-cli -F mmx-core/gst --release --target aarch64-apple-darwin
+fi
+
+# build x86_64
+if [[ -x scripts/env_arch.sh ]]; then
+  scripts/env_arch.sh x86_64-apple-darwin -- cargo build -p mmx-cli -F mmx-core/gst --release --target x86_64-apple-darwin
+else
+  cargo build -p mmx-cli -F mmx-core/gst --release --target x86_64-apple-darwin
+fi
+
+# locate binaries
+bin_arm=""
+for c in mmx mmx-cli; do
+  [[ -x "target/aarch64-apple-darwin/release/$c" ]] && bin_arm="target/aarch64-apple-darwin/release/$c" && break
+done
+bin_x64=""
+for c in mmx mmx-cli; do
+  [[ -x "target/x86_64-apple-darwin/release/$c" ]] && bin_x64="target/x86_64-apple-darwin/release/$c" && break
+done
+[[ -n "$bin_arm" && -n "$bin_x64" ]]
+
+# make universal
+mkdir -p target/universal-apple-darwin/release dist
+out_uni="target/universal-apple-darwin/release/mmx"
+lipo -create -output "$out_uni" "$bin_arm" "$bin_x64"
+chmod +x "$out_uni"
+
+# package + checksum
+tar -C target/universal-apple-darwin/release -czf dist/mmx-macos-universal.tar.gz mmx
+shasum -a 256 dist/mmx-macos-universal.tar.gz | awk '{print $1}' > dist/mmx-macos-universal.tar.gz.sha256
+
+# smoke
+"$out_uni" --help >/dev/null 2>&1 || true
