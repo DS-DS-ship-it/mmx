@@ -1,0 +1,302 @@
+use std::process::Command as Proc;
+use anyhow::{bail, Result};
+use mmx_core::backend::{self, QcOptions, RunOptions};
+use mmx_core::probe_ffprobe_fallback;
+use mmx_core::packager::{self, PackKind};
+use clap::{Args, Parser, Subcommand};
+
+fn which_path(bin: &str) -> Option<String> {
+    if let Ok(p) = std::env::var(bin.to_uppercase()) {
+        if !p.trim().is_empty() { return Some(p); }
+    }
+    let path = match std::env::var("PATH") { Ok(x) => x, Err(_) => return None };
+    let sep = if cfg!(windows) { ';' } else { ':' };
+    for dir in path.split(sep) {
+        if dir.is_empty() { continue; }
+        let cand = if cfg!(windows) {
+            let exts = ["", ".exe", ".bat", ".cmd"];
+            let mut found = None;
+            for e in &exts {
+                let c = std::path::Path::new(dir).join(format!("{bin}{e}"));
+                if c.is_file() { found = Some(c); break; }
+            }
+            if let Some(fp) = found { fp } else { continue }
+        } else {
+            std::path::Path::new(dir).join(bin)
+        };
+        if cand.is_file() { return Some(cand.to_string_lossy().to_string()); }
+    }
+    None
+}
+
+#[derive(Parser, Debug)]
+#[command(name = "mmx")]
+#[command(about = "MMX — media swiss-army CLI")]
+struct Cli {
+    #[command(subcommand)]
+    cmd: Command}
+
+#[derive(Subcommand, Debug)]
+pub enum Command {
+    Remux(RemuxArgs),
+    /// Run a transcode with a chosen backend
+    Run(RunArgs),
+    /// Probe input media
+    Probe(ProbeArgs),
+    /// Quality check between two files
+    Qc(QcArgs),
+    /// Package for streaming (HLS/DASH)
+    Pack(PackArgs),
+    Doctor
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct RunArgs {
+    /// Backend name (gst)
+    #[arg(long = "backend")]
+    backend: String,
+
+    /// Input path
+    #[arg(long = "input")]
+    input: String,
+
+    /// Output path
+    #[arg(long = "output")]
+    output: String,
+
+    /// Constant frame rate
+    #[arg(long, default_value_t = false)]
+    cfr: bool,
+
+    /// Output FPS (when CFR)
+    #[arg(long)]
+    fps: Option<u32>,
+
+    /// Execute the graph
+    #[arg(long, default_value_t = false)]
+    execute: bool,
+
+    /// Job manifest path (optional)
+    #[arg(long)]
+    manifest: Option<String>,
+
+    /// Stream JSON Lines progress to stdout
+    #[arg(long = "progress-json", default_value_t = false)]
+    progress_json: bool,
+
+    /// Hardware encoder (vt|nvenc|qsv|vaapi|cpu)
+    #[arg(long = "hardware")]
+    hardware: Option<String>}
+
+#[derive(Args, Debug, Clone)]
+pub struct ProbeArgs {
+    /// Input media file
+    #[arg(long)]
+    input: String}
+
+#[derive(Args, Debug, Clone)]
+pub struct QcArgs {
+    /// Reference file
+    #[arg(long = "ref-path")]
+    ref_path: String,
+
+    /// Distorted/comparison file
+    #[arg(long = "dist-path")]
+    dist_path: String,
+
+    /// Compute PSNR
+    #[arg(long, default_value_t = false)]
+    psnr: bool,
+
+    /// Compute SSIM
+    #[arg(long, default_value_t = false)]
+    ssim: bool,
+
+    /// Optional VMAF model path
+    #[arg(long = "vmaf-model")]
+    vmaf_model: Option<String>}
+
+#[derive(Args, Debug, Clone)]
+pub struct PackArgs {
+    /// Input media file
+    #[arg(long)]
+    input: String,
+
+    /// Packager kind: hls | dash
+    #[arg(long, default_value = "hls")]
+    packager: String,
+
+    /// Output directory for HLS
+    #[arg(long = "hls-out")]
+    hls_out: Option<String>,
+
+    /// Output directory for DASH
+    #[arg(long = "dash-out")]
+    dash_out: Option<String>,
+
+    /// Segment duration (seconds)
+    #[arg(long = "segment-duration", default_value_t = 4)]
+    segment_duration: u32,
+
+    /// Suggest a ladder automatically
+    #[arg(long = "auto-ladder", default_value_t = true)]
+    auto_ladder: bool,
+
+    /// Explicit ladder spec (e.g. 640x360@500k,1280x720@1500k,1920x1080@3000k)
+    #[arg(long = "ladder")]
+    ladder: Option<String>,
+
+    /// Enable per-shot analysis (placeholder)
+    #[arg(long = "per-shot", default_value_t = false)]
+    per_shot: bool,
+
+    /// Tone-map policy: auto|off (placeholder)
+    #[arg(long = "tone-map", default_value = "auto")]
+    tone_map: String}
+
+fn cmd_run(a: RunArgs) -> Result<()> {
+    let mut opts = RunOptions::default();
+    opts.backend = a.backend;
+    opts.input = a.input;
+    opts.output = a.output;
+    opts.cfr = a.cfr;
+    opts.fps = a.fps;
+    opts.execute = a.execute;
+    opts.manifest = a.manifest.map(std::path::PathBuf::from);
+    opts.progress_json = a.progress_json;
+    opts.hardware = a.hardware;
+    backend::run(opts)
+}
+
+fn cmd_probe(a: ProbeArgs) -> Result<()> {
+    let rep = backend::probe(&a.input)?;
+    println!("{}", serde_json::to_string_pretty(&rep)?);
+    Ok(())
+}
+
+fn cmd_qc(a: QcArgs) -> Result<()> {
+    let q = QcOptions {
+        ref_path: a.ref_path,
+        dist_path: a.dist_path,
+        vmaf_model: a.vmaf_model};
+    let rep = backend::qc(&q)?;
+    println!("{}", serde_json::to_string_pretty(&rep)?);
+    Ok(())
+}
+
+fn cmd_pack(a: PackArgs) -> Result<()> {
+    let kind = match a.packager.as_str() {
+        "hls" => PackKind::Hls,
+        "dash" => PackKind::Dash,
+        other => bail!("unknown --packager {}", other)};
+
+    let out_dir = match kind {
+        PackKind::Hls => a
+            .hls_out
+            .ok_or_else(|| anyhow::anyhow!("--hls-out <dir> is required for --packager hls"))?,
+        PackKind::Dash => a
+            .dash_out
+            .ok_or_else(|| anyhow::anyhow!("--dash-out <dir> is required for --packager dash"))?};
+
+    packager::pack_unified_auto(
+        kind,
+        std::path::Path::new(&a.input),
+        std::path::Path::new(&out_dir),
+        a.segment_duration,
+        a.auto_ladder,
+        a.ladder.as_deref(),
+        a.per_shot,
+        &a.tone_map,
+    )?;
+
+    eprintln!("[pack] wrote to {}", out_dir);
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+    match cli.cmd {
+        Command::Run(a) => cmd_run(a)?,
+        Command::Probe(a) => cmd_probe(a)?,
+        Command::Qc(a) => cmd_qc(a)?,
+        Command::Pack(a) => cmd_pack(a)?,
+        Command::Doctor => cmd_doctor()?,
+        Command::Remux(a) => cmd_remux(a)?,
+    }
+    Ok(())
+}
+
+#[derive(clap::Args, Debug, Clone)]
+pub struct RemuxArgs {
+    /// Input media file
+    #[arg(long)]
+    input: String,
+    /// Output container file
+    #[arg(long)]
+    output: String,
+    /// Optional explicit format (e.g. mp4, mkv)
+    #[arg(long)]
+    format: Option<String>,
+}
+
+fn cmd_remux(a: RemuxArgs) -> anyhow::Result<()> {
+    use std::process::Command;
+    let ffmpeg = std::env::var("FFMPEG").unwrap_or_else(|_| "ffmpeg".to_string());
+    let mut args = vec![
+        "-y",
+        "-v", "error",
+        "-i", &a.input,
+        "-c", "copy",
+    ];
+    if let Some(fmt) = &a.format {
+        args.extend(["-f", fmt]);
+    }
+    args.push(&a.output);
+    let status = Command::new(ffmpeg).args(&args).status()
+        .map_err(|e| anyhow::anyhow!("failed to run ffmpeg (is it installed and on PATH or FFMPEG env set?): {e}"))?;
+    if !status.success() {
+        return Err(anyhow::anyhow!("ffmpeg (remux) failed, status: {:?}", status));
+    }
+    eprintln!("[remux] wrote {}", a.output);
+    Ok(())
+}
+
+
+#[derive(clap::Args, Debug)]
+struct PackCopyArgs {
+    /// Input file
+    #[arg(long, value_name="PATH")]
+    input: String,
+    /// Output file
+    #[arg(long, value_name="PATH")]
+    output: String,
+    /// Stream map (ffmpeg-style), e.g. "0:v:0,0:a:0,0:s?"
+    #[arg(long)]
+    stream_map: Option<String>,
+    /// Start time (seconds)
+    #[arg(long)]
+    ss: Option<f64>,
+    /// End time (seconds)
+    #[arg(long)]
+    to: Option<f64>,
+}
+fn cmd_doctor() -> anyhow::Result<()> {
+    let ff  = std::env::var("FFMPEG").ok().or_else(|| which::which("ffmpeg").ok().map(|p| p.to_string_lossy().to_string()));
+    let ffp = std::env::var("FFPROBE").ok().or_else(|| which::which("ffprobe").ok().map(|p| p.to_string_lossy().to_string()));
+    let gst = which::which("gst-launch-1.0").ok().map(|p| p.to_string_lossy().to_string());
+    let rep = serde_json::json!({
+        "mmx": "ok",
+        "deps": {
+            "ffmpeg": ff.unwrap_or_else(|| "<missing>".into()),
+            "ffprobe": ffp.unwrap_or_else(|| "<missing>".into()),
+            "gstreamer": gst.unwrap_or_else(|| "<missing>".into())
+        },
+        "env": {
+            "PATH": std::env::var("PATH").unwrap_or_default(),
+            "FFMPEG": std::env::var("FFMPEG").unwrap_or_default(),
+            "FFPROBE": std::env::var("FFPROBE").unwrap_or_default()
+        }
+    });
+    println!("{}", serde_json::to_string_pretty(&rep)?);
+    Ok(())
+}

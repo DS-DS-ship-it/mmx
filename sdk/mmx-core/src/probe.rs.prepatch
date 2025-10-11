@@ -1,0 +1,87 @@
+// 0BSD
+use serde::{Deserialize, Serialize};
+use std::{collections::BTreeMap, fs, path::Path};
+pub const PROBE_SCHEMA_VERSION: &str = "1.0.0";
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ProbeReport {
+    pub schema_version: String,
+    pub path: String,
+    pub format: FormatInfo,
+    pub streams: Vec<StreamInfo>,
+    pub chapters: Vec<Chapter>,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FormatInfo {
+    pub format_name: String,
+    pub duration_sec: Option<f64>,
+    pub size_bytes: Option<u64>,
+    pub bit_rate: Option<u64>,
+    pub tags: BTreeMap<String,String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Chapter {
+    pub id: usize,
+    pub start_sec: f64,
+    pub end_sec: f64,
+    pub tags: BTreeMap<String,String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VideoStreamInfo {
+    pub index: usize,
+    pub codec: String,
+    pub width: u32,
+    pub height: u32,
+    pub fps: Option<f64>,
+    pub color_primaries: Option<String>,
+    pub color_trc: Option<String>,
+    pub color_matrix: Option<String>,
+    pub hdr: Option<bool>,
+    pub tags: BTreeMap<String,String>,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AudioStreamInfo {
+    pub index: usize,
+    pub codec: String,
+    pub sample_rate: u32,
+    pub channels: u32,
+    pub channel_layout: Option<String>,
+    pub bit_rate: Option<u64>,
+    pub tags: BTreeMap<String,String>,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SubtitleStreamInfo {
+    pub index: usize,
+    pub codec: String,
+    pub language: Option<String>,
+    pub hearing_impaired: Option<bool>,
+    pub tags: BTreeMap<String,String>,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(tag="type", rename_all="snake_case")]
+pub enum StreamInfo {
+    Video(VideoStreamInfo),
+    Audio(AudioStreamInfo),
+    Subtitle(SubtitleStreamInfo),
+    Other { index: usize, codec: String, tags: BTreeMap<String,String> }
+}
+
+pub fn cheap_probe(path: &str) -> anyhow::Result<ProbeReport> {
+    let p = Path::new(path);
+    let md = fs::metadata(p).ok();
+    let size = md.as_ref().map(|m| m.len());
+    let format = p.extension().and_then(|e| e.to_str()).map(|s| s.to_lowercase()).unwrap_or_else(|| "unknown".to_string());
+    let mut tags = BTreeMap::new();
+    tags.insert("source".into(), "cheap_probe".into());
+    Ok(ProbeReport{
+        schema_version: PROBE_SCHEMA_VERSION.to_string(),
+        path: path.to_string(),
+        format: FormatInfo{ format_name: format, duration_sec: None, size_bytes: size, bit_rate: None, tags },
+        streams: vec![], chapters: vec![],
+        warnings: vec!["cheap_probe produced minimal info; enable a real backend for full details".into()]
+    })
+}

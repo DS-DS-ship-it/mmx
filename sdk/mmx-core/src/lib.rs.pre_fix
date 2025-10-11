@@ -1,0 +1,116 @@
+// 0BSD
+pub mod probe;
+pub mod backend;
+pub mod qc;
+
+use serde::{Deserialize, Serialize};
+
+pub use probe::{ProbeReport, FormatInfo, Chapter, VideoStreamInfo, AudioStreamInfo, SubtitleStreamInfo, StreamInfo, PROBE_SCHEMA_VERSION};
+
+#[derive(Debug, thiserror::Error)]
+pub enum MmxError { #[error("{0}")] Msg(String) }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HlsVariant {
+    pub name: String,
+    pub bandwidth: u32,
+    pub res: Option<(u32,u32)>,
+    pub dir: String,
+    pub codecs: Option<String>,
+    pub vcodec: Option<String>,
+    pub acodec: Option<String>,
+    pub vbv_maxrate: Option<u32>,
+    pub vbv_bufsize: Option<u32>,
+    pub gop: Option<i32>,
+    pub profile: Option<String>,
+    pub encoder_family: Option<String>,
+    pub abitrate: Option<u32>,
+    pub cmaf: Option<bool>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AudioVariant {
+    pub name: String, pub group: String, pub lang: String, pub dir: String,
+    pub acodec: String, pub bandwidth: u32, pub default: bool,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Packager { #[serde(rename="hls-ts")] HlsTs, #[serde(rename="hls-cmaf")] HlsCmaf, #[serde(rename="dash-cmaf")] DashCmaf }
+impl Default for Packager { fn default()->Self { Packager::HlsTs } }
+
+pub fn codecs_tag(video: &str, audio: &str, profile: Option<&str>) -> String {
+    let v = match video {
+        "h265" | "hevc" => "hvc1.1.6.L123.B0".to_string(),
+        "av1" => "av01.0.08M.08".to_string(),
+        "vp9" => "vp09.00.50.08".to_string(),
+        _ => match profile { Some("high")=>"avc1.64002A".into(), Some("main")=>"avc1.4D4029".into(), _=>"avc1.4D401F".into() }
+    };
+    let a = match audio { "opus"=>"opus", "ac3"=>"ac-3", "eac3"=>"ec-3", "flac"=>"fLaC", _=>"mp4a.40.2" };
+    format!("{},{}", v, a)
+}
+pub fn derive_bandwidth(vbv_maxrate: Option<u32>, enc_bitrate: Option<u32>, abitrate: Option<u32>, res: Option<(u32,u32)>) -> u32 {
+    let vbv = vbv_maxrate.or(enc_bitrate).unwrap_or_else(|| match res {
+        Some((w,h)) if w>=1920 || h>=1080 => 5_000_000,
+        Some((w,h)) if w>=1280 || h>=720  => 3_000_000,
+        _ => 1_600_000,
+    });
+    let ab = abitrate.unwrap_or(128_000);
+    ((vbv + ab) as f64 * 1.10) as u32
+}
+pub fn write_hls_master(path:&std::path::Path, variants:&[(String,u32,Option<(u32,u32)>,String,String,Option<String>)], audios:&[(String,String,String,bool,String,String)]) -> anyhow::Result<()> {
+    use std::io::Write;
+    if let Some(parent) = path.parent(){ std::fs::create_dir_all(parent)?; }
+    let mut s=String::from("#EXTM3U\n#EXT-X-VERSION:7\n");
+    for (group,name,lang,default,dir,file) in audios {
+        let def=if *default {"YES"} else {"NO"};
+        s.push_str(&format!(r#"#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="{group}",NAME="{name}",LANGUAGE="{lang}",DEFAULT={def},AUTOSELECT=YES,URI="{dir}/{file}""#));
+        s.push('\n');
+    }
+    for (name,bw,res,dir,codecs,audio_group) in variants {
+        let audio_attr = audio_group.as_ref().map(|g| format!(r#",AUDIO="{g}""#)).unwrap_or_default();
+        let uri = format!("{dir}/{name}.m3u8");
+        if let Some((w,h))=res {
+            s.push_str(&format!(r#"#EXT-X-STREAM-INF:BANDWIDTH={bw},RESOLUTION={w}x{h},CODECS="{codecs}"{audio_attr}"#));
+        } else {
+            s.push_str(&format!(r#"#EXT-X-STREAM-INF:BANDWIDTH={bw},CODECS="{codecs}"{audio_attr}"#));
+        }
+        s.push('\n'); s.push_str(&uri); s.push('\n');
+    }
+    let mut f=std::fs::File::create(path)?; f.write_all(s.as_bytes())?; Ok(())
+}
+pub fn write_hls_variant_playlist(base_dir:&std::path::Path, name:&str, cmaf:bool)->anyhow::Result<()>{
+    use std::io::Write; std::fs::create_dir_all(base_dir)?;
+    let ext=if cmaf {"m4s"} else {"ts"};
+    let mut s=String::from("#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-TARGETDURATION:4\n#EXT-X-PLAYLIST-TYPE:VOD\n");
+    for i in 0..5u32 { s.push_str(&format!("#EXTINF:4.0,\n{n}_{i:05}.{ext}\n", n=name, i=i, ext=ext)); }
+    let mut f=std::fs::File::create(base_dir.join(format!("{name}.m3u8")))?; f.write_all(s.as_bytes())?; Ok(())
+}
+pub fn write_audio_playlist(base_dir:&std::path::Path, name:&str)->anyhow::Result<()>{
+    use std::io::Write; std::fs::create_dir_all(base_dir)?;
+    let mut s=String::from("#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-TARGETDURATION:4\n#EXT-X-PLAYLIST-TYPE:VOD\n");
+    for i in 0..5u32 { s.push_str(&format!("#EXTINF:4.0,\n{n}_{i:05}.m4s\n", n=name, i=i)); }
+    let mut f=std::fs::File::create(base_dir.join(format!("{name}.m3u8")))?; f.write_all(s.as_bytes())?; Ok(())
+}
+pub fn write_dash_mpd(path:&std::path::Path, v_reps:&[(String,u32,Option<(u32,u32)>,String,String)], a_rep:Option<(String,u32,String)>) -> anyhow::Result<()> {
+    use std::io::Write; if let Some(parent)=path.parent(){ std::fs::create_dir_all(parent)?; }
+    let mut s=String::new();
+    s.push_str(r#"<?xml version="1.0" encoding="UTF-8"?>"#);
+    s.push_str(r#"<MPD xmlns="urn:mpeg:DASH:schema:MPD:2011" type="static" minBufferTime="PT2S" profiles="urn:mpeg:dash:profile:isoff-main:2011">"#);
+    s.push_str(r#"<Period start="PT0S">"#);
+    s.push_str(r#"<AdaptationSet contentType="video" mimeType="video/mp4" startWithSAP="1">"#);
+    for (name,bw,res,dir,codecs) in v_reps {
+        let (w,h)=res.unwrap_or((0,0));
+        s.push_str(&format!(r#"<Representation id="{name}" bandwidth="{bw}" codecs="{codecs}" width="{w}" height="{h}">"#));
+        s.push_str(&format!(r#"<BaseURL>{}/</BaseURL>"#, dir));
+        s.push_str(r#"<SegmentTemplate media="$RepresentationID$_$Number$.m4s" initialization="$RepresentationID$_init.mp4" duration="4" startNumber="0"/>"#);
+        s.push_str(r#"</Representation>"#);
+    }
+    s.push_str(r#"</AdaptationSet>"#);
+    if let Some((name,bw,dir))=a_rep {
+        s.push_str(r#"<AdaptationSet contentType="audio" mimeType="audio/mp4" startWithSAP="1">"#);
+        s.push_str(&format!(r#"<Representation id="{name}" bandwidth="{bw}" codecs="mp4a.40.2">"#));
+        s.push_str(&format!(r#"<BaseURL>{}/</BaseURL>"#, dir));
+        s.push_str(r#"<SegmentTemplate media="$RepresentationID$_$Number$.m4s" initialization="$RepresentationID$_init.mp4" duration="4" startNumber="0"/>"#);
+        s.push_str(r#"</Representation></AdaptationSet>"#);
+    }
+    s.push_str(r#"</Period></MPD>"#);
+    let mut f=std::fs::File::create(path)?; f.write_all(s.as_bytes())?; Ok(())
+}
