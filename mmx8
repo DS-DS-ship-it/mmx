@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# save as: scripts/git_purge_secrets_and_force_push.sh
+set -euo pipefail
+
+# 0) Preconditions
+git rev-parse --is-inside-work-tree >/dev/null
+REMOTE="${1:-origin}"
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+TAGS_TO_RETAG=("v0.2.1" "v0.2.2")
+
+# 1) Ensure git-filter-repo is available
+if ! command -v git-filter-repo >/dev/null 2>&1; then
+  (python3 -m pip install --user git-filter-repo >/dev/null 2>&1) || true
+fi
+if ! command -v git-filter-repo >/dev/null 2>&1; then
+  if command -v brew >/dev/null 2>&1; then brew install git-filter-repo; fi
+fi
+command -v git-filter-repo >/dev/null 2>&1
+
+# 2) Stop if unstaged changes (optional safety)
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "[fail] working tree not clean; commit or stash first" >&2
+  exit 1
+fi
+
+# 3) Build replace rules (redact secrets across entire history)
+mkdir -p .git/tools
+cat > .git/tools/replace-secrets.txt <<'TXT'
+regex:(?i)(sk_(test|live)_[A-Za-z0-9]+)==>STRIPE_SECRET_REDACTED
+regex:(?i)(rk_(test|live)_[A-Za-z0-9]+)==>STRIPE_RESTRICTED_KEY_REDACTED
+regex:(?i)(whsec_[A-Za-z0-9]+)==>STRIPE_WEBHOOK_SECRET_REDACTED
+regex:(?i)((ghp|github_pat)_[A-Za-z0-9_]+)==>GITHUB_TOKEN_REDACTED
+regex:(?i)(x-hub-signature-256:\s*sha256=[0-9a-f]{64})==>x-hub-signature-256: sha256=REDACTED
+regex:(?i)(GITHUB_WEBHOOK_SECRET\s*[=:]\s*["'\`]?[^"'\`\r\n]+)==>GITHUB_WEBHOOK_SECRET="REDACTED"
+regex:(?i)(STRIPE_SECRET_KEY\s*[=:]\s*["'\`]?[^"'\`\r\n]+)==>STRIPE_SECRET_KEY="REDACTED"
+regex:(?i)(STRIPE_WEBHOOK_SECRET\s*[=:]\s*["'\`]?[^"'\`\r\n]+)==>STRIPE_WEBHOOK_SECRET="REDACTED"
+regex:(?i)(STRIPE_CLIENT_ID\s*[=:]\s*["'\`]?[^"'\`\r\n]+)==>STRIPE_CLIENT_ID="REDACTED"
+TXT
+
+# 4) Optionally drop known secret-bearing files from history (keep everything else)
+#    Add more paths if you know exact filenames that contained secrets.
+PATHS_TO_DROP=()
+[[ -f .env ]] && PATHS_TO_DROP+=(".env")
+[[ -f env ]] && PATHS_TO_DROP+=("env")
+[[ -f server/.env ]] && PATHS_TO_DROP+=("server/.env")
+
+DROP_ARGS=()
+if [[ ${#PATHS_TO_DROP[@]} -gt 0 ]]; then
+  for p in "${PATHS_TO_DROP[@]}"; do DROP_ARGS+=(--path "$p"); done
+  DROP_ARGS+=(--invert-paths)
+fi
+
+# 5) Rewrite history
+git filter-repo --force \
+  --replace-text .git/tools/replace-secrets.txt \
+  "${DROP_ARGS[@]}"
+
+# 6) Ensure secrets are ignored going forward
+grep -qxF ".env" .gitignore 2>/dev/null || echo ".env" >> .gitignore
+grep -qxF "logs/" .gitignore 2>/dev/null || echo "logs/" >> .gitignore
+grep -qxF "dist/*.tar.gz" .gitignore 2>/dev/null || echo "dist/*.tar.gz" >> .gitignore
+git add .gitignore
+git commit -m "chore(security): ignore secrets and artifacts" || true
+
+# 7) Retag sanitized tags to current HEAD (only if they exist locally)
+for t in "${TAGS_TO_RETAG[@]}"; do
+  if git rev-parse -q --verify "refs/tags/$t" >/dev/null; then
+    git tag -f "$t"
+  fi
+done
+
+# 8) Force-push rewritten history and tags
+git remote show "$REMOTE" >/dev/null
+git push --force "$REMOTE" "$BRANCH"
+git push --force --tags "$REMOTE"
+
+# 9) Local scan to double-check (non-fatal)
+echo "[scan] searching for remaining token patterns:"
+( git grep -I -nE 'sk_(test|live)_[A-Za-z0-9]+' || true )
+( git grep -I -nE '(ghp|github_pat)_[A-Za-z0-9_]+' || true )
+
+echo "[ok] secrets purged and force-pushed"

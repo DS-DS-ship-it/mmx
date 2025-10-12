@@ -1,0 +1,31 @@
+[package]
+name = "mmx-cli"
+version = "0.2.2"
+edition = "2021"
+license = "0BSD"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = 
+serde = { version = "1", features = ["derive"] }
+which = "6"
+
+["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+mmx-core = { path = "../mmx-core" }
+
+[[bin]]
+name = "mmx"
+path = "src/main.rs"
+axum = "0.7"
+tokio = { version = "1", features = ["rt-multi-thread","macros","signal"] }
+regex = "1"
+
+[dev-dependencies]
+assert_cmd = "2"
+
+[[bin]]
+name = "mmx-compat"
+path = "src/compat_main.rs"
+

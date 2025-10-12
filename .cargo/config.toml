@@ -1,0 +1,8 @@
+[target.aarch64-apple-darwin]
+rustflags = [
+  "-L", "/opt/homebrew/lib",
+  "-L", "/opt/homebrew/opt/glib/lib",
+  "-L", "/opt/homebrew/opt/gettext/lib",
+  "-L", "/opt/homebrew/opt/gstreamer/lib",
+  "-L", "/opt/homebrew/opt/gst-plugins-base/lib"
+]
