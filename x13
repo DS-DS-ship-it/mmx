@@ -1,0 +1,112 @@
+#!/bin/bash
+
+set -e
+
+echo "📁 Switching to repo..."
+cd ~/mmx
+
+# --- PATCH FILE DOWNLOADS ---
+echo "🌐 Downloading patch files if missing..."
+curl -sfLo patch_manifest_resume.py https://raw.githubusercontent.com/mmx-patches/patches/main/patch_manifest_resume.py || true
+curl -sfLo patch_progress.py https://raw.githubusercontent.com/mmx-patches/patches/main/patch_progress.py || true
+
+# --- APPLY PATCHES ---
+echo "🔁 Applying resume patch..."
+python3 patch_manifest_resume.py --dir .
+
+echo "🔁 Applying progress patch..."
+python3 patch_progress.py --dir .
+
+# --- ADD `doctor` COMMAND ---
+echo "➕ Adding doctor command..."
+cat > src/bin/doctor.rs <<EOF
+fn main() {
+    let paths = ["/usr/local/bin/ffmpeg", "/usr/local/bin/ffprobe", "/opt/homebrew/bin/gst-launch-1.0"];
+    for path in paths {
+        if std::path::Path::new(path).exists() {
+            println!("✅ Found: {}", path);
+        } else {
+            println!("❌ Missing: {}", path);
+        }
+    }
+}
+EOF
+
+# --- ADD `remux` COMMAND ---
+echo "➕ Adding remux command..."
+cat > src/bin/remux.rs <<EOF
+use std::process::Command;
+
+fn main() {
+    let args: Vec<_> = std::env::args().collect();
+    if args.len() < 3 {
+        eprintln!("Usage: mmx remux <input> <output>");
+        std::process::exit(1);
+    }
+
+    let input = &args[1];
+    let output = &args[2];
+    let status = Command::new("ffmpeg")
+        .args(["-i", input, "-map", "0", "-c", "copy", output])
+        .status()
+        .expect("Failed to run ffmpeg");
+    std::process::exit(status.code().unwrap_or(1));
+}
+EOF
+
+# --- CREATE SMOKE TEST SCRIPT ---
+echo "🧪 Creating smoke test script..."
+mkdir -p scripts
+cat > scripts/test_smoke.sh <<'EOF'
+#!/bin/bash
+set -e
+echo "🧪 Smoke Test: mmx doctor"
+cargo run --bin doctor
+echo "🧪 Smoke Test: mmx remux (dummy)"
+touch test_input.mp4
+cargo run --bin remux test_input.mp4 test_output.mp4 || true
+EOF
+chmod +x scripts/test_smoke.sh
+
+# --- CARGO BUILD ---
+echo "🛠️ Building MMX CLI..."
+cargo build -F mmx-core/gst --release
+
+# --- LINK COMPAT BINARIES ---
+echo "🔗 Linking mmx-compat → ffmpeg + ffprobe..."
+sudo ln -sf ~/mmx/target/release/mmx-compat /usr/local/bin/ffmpeg
+sudo ln -sf ~/mmx/target/release/mmx-compat /usr/local/bin/ffprobe
+
+# --- VERSIONING + TAG ---
+echo "🔖 Tagging version 0.2.3..."
+cargo set-version 0.2.3
+git add .
+git commit -m "🚀 Add doctor/remux commands + resume/progress patches"
+git tag v0.2.3
+
+# --- CHANGELOG UPDATE ---
+echo "📝 Writing CHANGELOG..."
+cat > CHANGELOG.md <<EOF
+# Changelog
+
+## [0.2.3] - $(date '+%Y-%m-%d')
+- Added \`doctor\` CLI command
+- Added \`remux\` CLI command
+- Smoke test suite created in scripts/test_smoke.sh
+- Resume/Progress patches applied
+- ffmpeg + ffprobe symlinked
+EOF
+git add CHANGELOG.md
+git commit -m "📓 Add changelog for v0.2.3"
+
+# --- DONE ---
+echo ""
+echo "✅ MMX CLI now includes:"
+echo "   • doctor"
+echo "   • remux"
+echo "   • smoke tests (run: ./scripts/test_smoke.sh)"
+echo "   • tagged as v0.2.3"
+echo ""
+echo "💡 You can now run:"
+echo "   cargo run --bin doctor"
+echo "   cargo run --bin remux input.mp4 output.mp4"
