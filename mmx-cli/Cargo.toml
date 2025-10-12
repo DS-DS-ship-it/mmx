@@ -1,27 +1,27 @@
 [package]
 name = "mmx-cli"
-version = "0.2.3"
+version = "0.2.0"
 edition = "2021"
-license = "0BSD"
+# Only build bins we explicitly list below.
+autobins = false
 
+license = "MIT"
 [dependencies]
-clap = { version = "4", features = ["derive"] }
-anyhow = "1"
-which = "6"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1"
-mmx-core = { path = "../mmx-core" }
-regex = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
-axum = "0.7"
-
-[dev-dependencies]
-assert_cmd = "2"
-
-[[bin]]
-name = "mmx"
-path = "src/main.rs"
+anyhow = "1.0"
+gstreamer = "0.24.2"
+# Enable the containers/codecs we need. (Note: feature is "isomp4", not "mp4".)
+symphonia = { version = "0.5.5", features = [
+  "isomp4",  # MP4/MOV
+  "mkv",     # Matroska
+  "ogg",
+  "wav",
+  "flac",
+  "aac",
+  "mp3",
+  "alac",
+  "pcm"
+]}
 
 [[bin]]
-name = "mmx-compat"
-path = "src/compat_main.rs"
+name = "mmx-remux"
+path = "src/bin/mmx-remux.rs"

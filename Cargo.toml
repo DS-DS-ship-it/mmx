@@ -1,3 +1,6 @@
 [workspace]
-members = ["mmx-core","mmx-cli"]
+members = [
+    "mmx-core",
+    "mmx-cli",
+]
 resolver = "2"

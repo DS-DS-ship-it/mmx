@@ -1,29 +1,20 @@
-# MMX — Hybrid Media Engine (Open Core)
+# MMX Remux (alpha)
+**Native Rust remuxer on GStreamer (no FFmpeg).**
 
-Open-core multimedia stack in Rust:
-- `mmx-core` — engine & APIs (MIT)
-- `mmx-cli` — CLI (MIT)
-- `mmx-pro` — commercial add-ons (GPU/GUI/Cloud)
+MMX Remux stream-copies (remuxes) audio/video from one container to another using the GStreamer media stack via Rust bindings. No transcoding, no FFmpeg dependency.
 
-## Install (from source)
+> ⚠️ Alpha quality. Expect rough edges. Please file issues with sample files that break.
+
+## Features
+- Remux **MP4 ⇄ MKV ⇄ WebM** (depends on installed GStreamer plugins)
+- Zero re-encode (stream copy)
+- Auto input detection via demuxers
+- Simple CLI (`mmx-remux in.mp4 out.mkv`)
+- Cross-platform builds (macOS universal2, Linux x86_64)
+
+## Install
+
+### Homebrew (after first release)
 ```bash
-cargo build -p mmx-cli -F mmx-core/gst --release
-./target/release/mmx --help
-```
-
-## Pricing
-| Tier     | Includes                                     | Price |
-|----------|----------------------------------------------|-------|
-| Community| mmx-core + mmx-cli (MIT)                     | Free  |
-| Indie    | GPU accel + ABR presets + error aide         | $49  |
-| Studio   | GUI + Cloud scheduler + priority support     | $499 |
-
-**Buy Pro:** https://example.com/buy
-
-## Telemetry
-Opt-in only: set `MMX_TELEMETRY=on`. Captures command, exit, duration (no paths).
-
-## License
-Core is MIT. Pro is commercial.
-
-[![Sponsor](https://img.shields.io/badge/Sponsor-MMX-orange)](https://buy.stripe.com)
+brew tap __TAP__
+brew install mmx-remux
