@@ -1,11 +1,12 @@
 [package]
 name = "mmx-cli"
-version = "0.2.0"
+version = "0.2.2"
 edition = "2021"
 # Only build bins we explicitly list below.
 autobins = false
 
 license = "MIT"
+repository = "https://github.com/'DS-DS-ship-it/mmx-remux'"
 [dependencies]
 anyhow = "1.0"
 gstreamer = "0.24.2"
@@ -25,3 +26,7 @@ symphonia = { version = "0.5.5", features = [
 [[bin]]
 name = "mmx-remux"
 path = "src/bin/mmx-remux.rs"
+
+[[bin]]
+name = "doctor"
+path = "src/bin/doctor.rs"
