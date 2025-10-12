@@ -16,5 +16,5 @@ MMX Remux stream-copies (remuxes) audio/video from one container to another usin
 
 ### Homebrew (after first release)
 ```bash
-brew tap __TAP__
+brew tap DS\-DS\-ship\-it\/mmx\-remux
 brew install mmx-remux
