@@ -55,3 +55,7 @@ Replace `DS-DS-ship-it/mmx` and issue number, then paste the patch into a PR.
 - **Samples / failing files:** open the “Sample intake” issue (drag-and-drop files or link to cloud storage).  
 - **Feature requests:** open the “Feature request” issue.  
 - CI ensures **main (master) always works**; unstable work lives behind the `experimental` Cargo feature or on branches.
+
+## Further reading
+- [Training](docs/TRAINING.md)
+- [Go To Market](docs/GO_TO_MARKET.md)
