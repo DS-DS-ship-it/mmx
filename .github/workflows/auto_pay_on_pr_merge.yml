@@ -15,7 +15,7 @@ jobs:
         id: info
         run: |
           labels='${{ toJson(github.event.pull_request.labels.*.name) }}'
-          # Expect "bounty:$50" or "bounty:$50.00"
+          # Expect "bounty:\$50" or "bounty:\$50.00"
           amount=$(printf "%s" "$labels" | tr -d '"[]' | tr ',' '\n' | sed -nE 's/.*bounty:\$?([0-9]+(\.[0-9]{1,2})?).*/\1/p' | head -1)
           # Optional "pay:@user"
           payto=$(printf "%s" "$labels" | tr -d '"[]' | tr ',' '\n' | sed -nE 's/.*pay:@([A-Za-z0-9_-]+).*/\1/p' | head -1)
