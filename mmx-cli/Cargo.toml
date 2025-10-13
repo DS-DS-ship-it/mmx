@@ -10,6 +10,7 @@ repository = "https://github.com/'DS-DS-ship-it/mmx-remux'"
 [dependencies]
 anyhow = "1.0"
 gstreamer = "0.24.2"
+serde_json = "1"
 # Enable the containers/codecs we need. (Note: feature is "isomp4", not "mp4".)
 symphonia = { version = "0.5.5", features = [
   "isomp4",  # MP4/MOV

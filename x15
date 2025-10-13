@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${1:-"$HOME/mmx"}"
+CLI="$ROOT/mmx-cli"
+REPO_NAME="${REPO_NAME:-mmx-remux}"
+DESC="MMX Remux — Native Rust remuxer on GStreamer (no FFmpeg)"
+DEFAULT_BRANCH="main"
+
+# --- Detect GitHub username (gh CLI) or fall back to placeholder ---
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  GH_USER="$(gh api user -q '.login')"
+else
+  GH_USER="${GH_USER:-your-github-username}"
+fi
+
+echo "📦 Repo root: $ROOT"
+echo "🧰 CLI crate: $CLI"
+echo "🏷️  Will create: https://github.com/$GH_USER/$REPO_NAME"
+
+# --- Sanity checks ---
+test -d "$ROOT" || { echo "❌ $ROOT not found"; exit 1; }
+test -d "$CLI"  || { echo "❌ $CLI not found"; exit 1; }
+command -v git >/dev/null || { echo "❌ git not found"; exit 1; }
+
+mkdir -p "$ROOT/.github/workflows" "$ROOT/Formula" "$ROOT/scripts"
+
+# --- Add/normalize workspace with resolver=2 and member mmx-cli ---
+if ! grep -q '^\[workspace\]' "$ROOT/Cargo.toml" 2>/dev/null; then
+  cat >>"$ROOT/Cargo.toml" <<'EOF_WS'
+
+[workspace]
+resolver = "2"
+members = ["mmx-cli"]
+EOF_WS
+else
+  # ensure resolver and mmx-cli member exist
+  awk '
+    BEGIN{inws=0; hadres=0; hadmem=0}
+    /^\[workspace\]/{print; inws=1; next}
+    inws && /^\[/{ if(!hadres) print "resolver = \"2\""; if(!hadmem) print "members = [\"mmx-cli\"]"; inws=0 }
+    inws && /resolver *=/ { hadres=1 }
+    inws && /members *=/  { hadmem=1 }
+    {print}
+    END{
+      if(inws){
+        if(!hadres) print "resolver = \"2\"";
+        if(!hadmem) print "members = [\"mmx-cli\"]";
+      }
+    }
+  ' "$ROOT/Cargo.toml" > "$ROOT/Cargo.toml.tmp" && mv "$ROOT/Cargo.toml.tmp" "$ROOT/Cargo.toml"
+fi
+
+# --- Ensure mmx-cli/Cargo.toml has package license/version and bin section ---
+if ! grep -q '^\[package\]' "$CLI/Cargo.toml"; then
+  cat >"$CLI/Cargo.toml" <<'EOF_PKG'
+[package]
+name = "mmx-cli"
+version = "0.1.0-alpha"
+edition = "2021"
+license = "MIT"
+description = "MMX Remux — Native Rust remuxer on GStreamer (no FFmpeg)"
+repository = ""
+readme = "../README.md"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+which = "6"
+gstreamer = "0.24"
+gstreamer-app = "0.24"
+gstreamer-pbutils = "0.24"
+gstreamer-video = "0.24"
+
+[[bin]]
+name = "mmx-remux"
+path = "src/bin/mmx-remux.rs"
+EOF_PKG
+else
+  # inject license/version fields if missing
+  awk '
+    BEGIN{inpkg=0; havever=0; havelic=0}
+    /^\[package\]/{print; inpkg=1; next}
+    inpkg && /^\[/{ 
+      if(!havever) print "version = \"0.1.0-alpha\"";
+      if(!havelic) print "license = \"MIT\"";
+      inpkg=0
+    }
+    inpkg && /^version *=/ {havever=1}
+    inpkg && /^license *=/ {havelic=1}
+    {print}
+    END{
+      if(inpkg){
+        if(!havever) print "version = \"0.1.0-alpha\"";
+        if(!havelic) print "license = \"MIT\"";
+      }
+    }
+  ' "$CLI/Cargo.toml" > "$CLI/Cargo.toml.tmp" && mv "$CLI/Cargo.toml.tmp" "$CLI/Cargo.toml"
+
+  if ! grep -q 'name *= *"mmx-remux"' "$CLI/Cargo.toml"; then
+    cat >>"$CLI/Cargo.toml" <<'EOF_BIN'
+
+[[bin]]
+name = "mmx-remux"
+path = "src/bin/mmx-remux.rs"
+EOF_BIN
+  fi
+fi
+
+# --- README.md ---
+cat >"$ROOT/README.md" <<EOF_README
+# MMX Remux (alpha)
+**Native Rust remuxer on GStreamer (no FFmpeg).**
+
+MMX Remux stream-copies (remuxes) audio/video from one container to another using the GStreamer media stack via Rust bindings. No transcoding, no FFmpeg dependency.
+
+> ⚠️ Alpha quality. Expect rough edges. Please file issues with sample files that break.
+
+## Features
+- Remux **MP4 ⇄ MKV ⇄ WebM** (depends on installed GStreamer plugins)
+- Zero re-encode (stream copy)
+- Auto input detection via demuxers
+- Simple CLI (`mmx-remux in.mp4 out.mkv`)
+- Cross-platform builds (macOS universal2, Linux x86_64)
+
+## Install
+
+### Homebrew (after first release)
+```bash
+brew tap $GH_USER/$REPO_NAME
+brew install mmx-remux

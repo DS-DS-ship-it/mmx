@@ -1,0 +1,257 @@
+#!/usr/bin/env bash
+# Creates GitHub Issue Forms, CI workflows, an auto-reply, and a branch-protection helper.
+# Safe to paste at your repo root and run once.
+set -euo pipefail
+
+# Repo root
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$ROOT"
+
+# Ensure git
+git rev-parse --git-dir >/dev/null 2>&1 || { echo "❌ Not a git repo: $ROOT"; exit 1; }
+
+# New branch
+BRANCH="ops-onboarding-ci-$(date +%Y%m%d-%H%M%S)"
+git checkout -b "$BRANCH" >/dev/null 2>&1 || git checkout "$BRANCH"
+
+# Folders
+mkdir -p .github/ISSUE_TEMPLATE .github/workflows docs scripts
+
+# -------- Training doc (minimal) --------
+[[ -f docs/TRAINING.md ]] || cat > docs/TRAINING.md <<'EOF'
+# Contributor Training (Quick)
+
+Use this one-liner with any AI assistant:
+
+> Act as a senior Rust + GStreamer engineer pairing on MMX Remux.  
+> I’m working on issue #NNN: <title>.  
+> Propose the **smallest** patch that compiles on macOS + Linux, passes `cargo clippy -- -D warnings`, adds/updates a smoke test, and hides risky parts under the `experimental` Cargo feature.  
+> Return: a diff (or full files), test updates, and a conventional commit message.
+EOF
+
+# -------- Issue forms --------
+cat > .github/ISSUE_TEMPLATE/join_program.yml <<'EOF'
+name: Join paid contributor program
+description: Apply to join the paid MMX Remux contributor pool
+labels: ["onboarding", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! Please avoid secrets or private keys anywhere.
+  - type: input
+    id: email
+    attributes:
+      label: Contact email
+      description: Used for onboarding. No passwords.
+      placeholder: you@example.com
+    validations:
+      required: true
+  - type: input
+    id: stripe
+    attributes:
+      label: Stripe account email (or status)
+      description: Create one at https://dashboard.stripe.com/register
+      placeholder: same-as-contact@example.com (or 'not yet')
+    validations:
+      required: true
+  - type: input
+    id: country
+    attributes:
+      label: Country
+      placeholder: US
+    validations:
+      required: true
+  - type: dropdown
+    id: skills
+    attributes:
+      label: Primary skills
+      multiple: true
+      options:
+        - Rust
+        - GStreamer
+        - Packaging/CI
+        - Docs
+        - DevOps
+  - type: textarea
+    id: availability
+    attributes:
+      label: Availability (hours/week, timezone)
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / portfolio links
+EOF
+
+cat > .github/ISSUE_TEMPLATE/sample_intake.yml <<'EOF'
+name: Sample intake (files that fail / test inputs)
+description: Provide media that breaks, or samples to test against
+labels: ["samples", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Drag-and-drop files here (small) or link to cloud storage. No secrets.
+  - type: input
+    id: input_container
+    attributes:
+      label: Container (e.g., mp4/mkv/webm)
+  - type: textarea
+    id: repro
+    attributes:
+      label: Repro steps
+      description: What you ran and what happened
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Output
+      description: Paste error text if any
+EOF
+
+cat > .github/ISSUE_TEMPLATE/feature_request.yml <<'EOF'
+name: Feature request
+description: Suggest an improvement or capability
+labels: ["enhancement"]
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: One-line summary
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What success looks like
+EOF
+
+# -------- CI (build + smoke + PR-size guard) --------
+cat > .github/workflows/ci.yml <<'EOF'
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - 'roadmap-**'
+      - 'feature/**'
+  pull_request:
+    branches:
+      - master
+      - main
+
+jobs:
+  build-and-smoke-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install GStreamer (base+good+bad)
+        run: |
+          brew update
+          brew install gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad || true
+      - name: Rust stable
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: cargo build --release -p mmx-cli --bin mmx-remux
+      - name: Smoke tests
+        run: |
+          chmod +x scripts/*.sh || true
+          if [[ -x scripts/smoke_gen_fixture_mp4.sh ]]; then ./scripts/smoke_gen_fixture_mp4.sh; fi
+          if [[ -x scripts/smoke_remux_mp4_to_mkv.sh ]]; then ./scripts/smoke_remux_mp4_to_mkv.sh; fi
+
+  guard-pr-size:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail if PR too large (>1500 lines changed)
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.sha }}"
+          changed=$(git diff --shortstat "$base" "$head" | sed -E 's/[^0-9]+/ /g' | awk '{print ($1+$2)}')
+          echo "Changed lines: ${changed:-0}"
+          test "${changed:-0}" -le 1500 || { echo "PR too large. Please split."; exit 1; }
+EOF
+
+# -------- Auto-reply for join form --------
+cat > .github/workflows/join_autoreply.yml <<'EOF'
+name: Join program auto-reply
+on:
+  issues:
+    types: [opened]
+jobs:
+  reply:
+    if: contains(github.event.issue.labels.*.name, 'onboarding')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const body = `
+Thanks for applying! :tada:
+
+**Next steps**
+1. Create a Stripe account (if you haven't): https://dashboard.stripe.com/register
+2. Read training quickstart: \`docs/TRAINING.md\`
+3. Pick or ask for an onboarding ticket; we’ll assign a small, paid starter task.
+
+**How we work**
+- Small PRs (< 500 lines), green CI required.
+- Put risky code behind the \`experimental\` Cargo feature.
+- Never share secrets or private keys on GitHub.
+
+We’ll follow up by email.
+`;
+            github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: context.payload.issue.number,
+              body
+            });
+EOF
+
+# -------- helper: protect master/main --------
+cat > scripts/protect_branch.sh <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+branch="${1:-master}"
+
+if ! command -v gh >/dev/null; then
+  echo "Install GitHub CLI: brew install gh"
+  exit 1
+fi
+
+owner_repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+echo "Protecting $branch on $owner_repo (requires gh auth)…"
+
+gh api -X PUT "repos/$owner_repo/branches/$branch/protection" \
+  -H "Accept: application/vnd.github+json" \
+  -f required_status_checks.strict=true \
+  -f required_status_checks.contexts[]="CI" \
+  -f enforce_admins=true \
+  -f required_pull_request_reviews.dismiss_stale_reviews=true
+
+echo "✅ Protection set."
+EOF
+chmod +x scripts/protect_branch.sh
+
+# -------- commit --------
+git add .github docs scripts || true
+git commit -m "ops: issue forms, CI (build+smoke+PR guard), join auto-reply, branch-protection helper" >/dev/null || true
+
+# -------- final instructions --------
+echo "✅ Files added and committed on branch: $BRANCH"
+echo
+echo "What next:"
+echo "  1) Review files: git diff --staged"
+echo "  2) Push:         git push origin $BRANCH"
+echo "  3) Open PR:      gh pr create --fill"
+echo "  4) Protect:      ./scripts/protect_branch.sh main   # or: master"

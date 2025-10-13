@@ -1,0 +1,12 @@
+[workspace]
+members = [
+    "mmx-cli"
+]
+    members = [n    "mmx-cli",n  ]
+members = [
+    "mmx-cli"
+]
+members = ["mmx-core", "mmx-cli"]
+    "mmx-cli",
+resolver = "2"
+    members = [n    "mmx-cli",n  ]
