@@ -59,3 +59,9 @@ Replace `DS-DS-ship-it/mmx` and issue number, then paste the patch into a PR.
 ## Further reading
 - [Training](docs/TRAINING.md)
 - [Go To Market](docs/GO_TO_MARKET.md)
+
+---
+
+Want to help build a native Rust remuxer (no FFmpeg) and get paid for merged work?
+**[Apply here →](https://github.com/DS-DS-ship-it/mmx/issues/new?template=join_program.yml)**
+
