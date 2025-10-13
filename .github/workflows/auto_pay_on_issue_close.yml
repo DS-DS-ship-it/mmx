@@ -1,0 +1,67 @@
+name: Auto pay on issue close (pay label to assignee)
+on:
+  issues:
+    types: [closed]
+permissions:
+  contents: read
+jobs:
+  pay:
+    if: |
+      contains(github.event.issue.labels.*.name, 'pay:$') || contains(join(github.event.issue.labels.*.name, ' '), 'pay:$')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Parse amount + assignee
+        id: info
+        run: |
+          labels='${{ toJson(github.event.issue.labels.*.name) }}'
+          amount=$(printf "%s" "$labels" | tr -d '"[]' | tr ',' '\n' | sed -nE 's/.*pay:\$?([0-9]+(\.[0-9]{1,2})?).*/\1/p' | head -1)
+          assignee='${{ github.event.issue.assignee.login || github.event.issue.user.login }}'
+          if [[ -z "$amount" ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          cents=$(python3 - <<PY
+amt="${amount}"
+from decimal import Decimal
+print(int(Decimal(amt)*100))
+PY
+)
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "amount_cents=$cents" >> $GITHUB_OUTPUT
+          echo "payto=$assignee"     >> $GITHUB_OUTPUT
+      - name: Abort if skipping
+        if: steps.info.outputs.skip == 'true'
+        run: echo "Skipping; no amount."
+      - name: Check payouts enabled
+        if: steps.info.outputs.skip != 'true'
+        run: |
+          echo "PAYOUTS_ENABLED=${{ vars.STRIPE_PAYOUTS_ENABLED }}"
+          test "${{ vars.STRIPE_PAYOUTS_ENABLED }}" = "true" || { echo "❌ STRIPE_PAYOUTS_ENABLED != true"; exit 1; }
+      - name: Lookup Stripe account
+        if: steps.info.outputs.skip != 'true'
+        id: acct
+        run: |
+          GH="${{ steps.info.outputs.payto }}"
+          ACCT=$(jq -r --arg gh "$GH" '.[$gh] // empty' .github/contributors.json)
+          [[ -z "$ACCT" ]] && { echo "❌ No Stripe account mapped for $GH"; exit 1; }
+          echo "acct=$ACCT" >> $GITHUB_OUTPUT
+      - name: Transfer payout
+        if: steps.info.outputs.skip != 'true'
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        run: |
+          ACCT="${{ steps.acct.outputs.acct }}"
+          AMOUNT="${{ steps.info.outputs.amount_cents }}"
+          MEMO="Issue #${{ github.event.issue.number }} closed"
+          RES=$(curl -sS https://api.stripe.com/v1/transfers \
+            -u "$STRIPE_SECRET_KEY:" \
+            -d amount="$AMOUNT" \
+            -d currency="usd" \
+            -d destination="$ACCT" \
+            -d description="$MEMO")
+          echo "$RES" | jq .
+          ID=$(echo "$RES" | jq -r .id)
+          [[ -z "$ID" || "$ID" == "null" ]] && { echo "❌ Transfer failed"; exit 1; }
+          echo "✅ Paid $AMOUNT cents to $ACCT for $MEMO"
