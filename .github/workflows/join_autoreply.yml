@@ -1,34 +1,56 @@
 name: Join program auto-reply
+
 on:
   issues:
-    types: [opened]
+    types: [opened, labeled]
+
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   reply:
-    if: contains(github.event.issue.labels.*.name, 'onboarding')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@v7
         with:
           script: |
-            const {owner, repo} = context.repo;
-            const body = `
-Thanks for applying! :tada:
+            const {context, github} = require('@actions/github');
+            const {eventName, payload} = context;
 
-**Next steps**
-1. Create a Stripe account (if you haven't): https://dashboard.stripe.com/register
-2. Read training quickstart: \`docs/TRAINING.md\`
-3. Pick or ask for an onboarding ticket; we’ll assign a small, paid starter task.
+            // Determine if this should fire:
+            // - When opened AND the issue has 'onboarding' label at creation
+            // - OR when labeled with 'onboarding'
+            const labels = (payload.issue.labels || []).map(l => (typeof l === 'string' ? l : l.name));
+            const isOpened = eventName === 'issues' && payload.action === 'opened';
+            const isLabeled = eventName === 'issues' && payload.action === 'labeled';
+            const newLabel = isLabeled ? (payload.label?.name || '') : '';
 
-**How we work**
-- Small PRs (< 500 lines), green CI required.
-- Put risky code behind the \`experimental\` Cargo feature.
-- Never share secrets or private keys on GitHub.
+            const hasOnboarding = labels.includes('onboarding') || newLabel === 'onboarding';
+            if (!hasOnboarding) {
+              core.info('Issue is not onboarding; skipping.');
+              return;
+            }
 
-We’ll follow up by email.
-`;
-            github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: context.payload.issue.number,
+            const body = [
+              "Thanks for applying! :tada:",
+              "",
+              "**Next steps**",
+              "1. Create a Stripe account (if you haven't): https://dashboard.stripe.com/register",
+              "2. Read training quickstart: `docs/TRAINING.md`",
+              "3. Pick or ask for an onboarding ticket; we’ll assign a small, paid starter task.",
+              "",
+              "**How we work**",
+              "- Small PRs (< 500 lines), green CI required.",
+              "- Put risky code behind the `experimental` Cargo feature.",
+              "- Never share secrets or private keys on GitHub.",
+              "",
+              "We’ll follow up by email."
+            ].join("\n");
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: payload.issue.number,
               body
             });
