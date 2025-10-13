@@ -1,20 +1,38 @@
-name: Release
+name: release
+
 on:
   push:
-    tags: ["v*"]
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-*'   # allow -alpha/-beta
 jobs:
-  build:
-    runs-on: macos-latest
+  build-macos-universal2:
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Build CLI
-        run: cargo build -p mmx-cli -F mmx-core/gst --release
-      - name: Pack SDK
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Add macOS targets
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - name: Build arm64
+        run: cargo build --release -p mmx-cli --bin mmx-remux --target aarch64-apple-darwin
+      - name: Build x86_64
+        run: cargo build --release -p mmx-cli --bin mmx-remux --target x86_64-apple-darwin
+      - name: Make universal2
         run: |
           mkdir -p dist
-          tar -czf dist/mmx-sdk.tar.gz mmx-core mmx-cli
-      - name: Upload
+          lipo -create -output dist/mmx-remux $(pwd)/target/aarch64-apple-darwin/release/mmx-remux $(pwd)/target/x86_64-apple-darwin/release/mmx-remux
+          chmod +x dist/mmx-remux
+          tar -C dist -czf dist/mmx-remux-${GITHUB_REF_NAME}-macos-universal2.tar.gz mmx-remux
+      - name: Compute sha256
+        id: sha
+        run: echo "sha=$(shasum -a 256 dist/mmx-remux-${GITHUB_REF_NAME}-macos-universal2.tar.gz | awk '{print $1}')" >> $GITHUB_OUTPUT
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/mmx-sdk.tar.gz
+          files: dist/mmx-remux-${{ github.ref_name }}-macos-universal2.tar.gz
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Show sha256 for Homebrew
+        run: echo "sha256=${{ steps.sha.outputs.sha }}"

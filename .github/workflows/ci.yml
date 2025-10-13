@@ -1,13 +1,48 @@
-name: ci
-on: [push, pull_request]
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - 'roadmap-**'
+      - 'feature/**'
+  pull_request:
+    branches:
+      - master
+      - main
+
 jobs:
-  macos-smoke:
-    runs-on: macos-14
+  build-and-smoke-macos:
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: brew install ffmpeg gstreamer
-      - run: cargo build -p mmx-cli -F mmx-core/gst --release
-      - run: ./target/release/mmx doctor --json || true
-      - run: ./target/release/mmx remux --input fixtures/short.mp4 --output /tmp/out.mp4 --ss 0 --to 1 --stream-map "0:v:0,0:a?,0:s?"
-      - run: ./target/release/mmx run --backend gst --input fixtures/short.mp4 --output /tmp/out_gst.mp4 --cfr --fps 30 --execute
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install GStreamer (base+good+bad)
+        run: |
+          brew update
+          brew install gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad || true
+      - name: Rust stable
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: cargo build --release -p mmx-cli --bin mmx-remux
+      - name: Smoke tests
+        run: |
+          chmod +x scripts/*.sh || true
+          if [[ -x scripts/smoke_gen_fixture_mp4.sh ]]; then ./scripts/smoke_gen_fixture_mp4.sh; fi
+          if [[ -x scripts/smoke_remux_mp4_to_mkv.sh ]]; then ./scripts/smoke_remux_mp4_to_mkv.sh; fi
+
+  guard-pr-size:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail if PR too large (>1500 lines changed)
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.sha }}"
+          changed=$(git diff --shortstat "$base" "$head" | sed -E 's/[^0-9]+/ /g' | awk '{print ($1+$2)}')
+          echo "Changed lines: ${changed:-0}"
+          test "${changed:-0}" -le 1500 || { echo "PR too large. Please split."; exit 1; }

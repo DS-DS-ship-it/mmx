@@ -1,0 +1,50 @@
+name: Join paid contributor program
+description: Apply to join the paid MMX Remux contributor pool
+labels: ["onboarding", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! Please avoid secrets or private keys anywhere.
+  - type: input
+    id: email
+    attributes:
+      label: Contact email
+      description: Used for onboarding. No passwords.
+      placeholder: you@example.com
+    validations:
+      required: true
+  - type: input
+    id: stripe
+    attributes:
+      label: Stripe account email (or status)
+      description: Create one at https://dashboard.stripe.com/register
+      placeholder: same-as-contact@example.com (or 'not yet')
+    validations:
+      required: true
+  - type: input
+    id: country
+    attributes:
+      label: Country
+      placeholder: US
+    validations:
+      required: true
+  - type: dropdown
+    id: skills
+    attributes:
+      label: Primary skills
+      multiple: true
+      options:
+        - Rust
+        - GStreamer
+        - Packaging/CI
+        - Docs
+        - DevOps
+  - type: textarea
+    id: availability
+    attributes:
+      label: Availability (hours/week, timezone)
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / portfolio links

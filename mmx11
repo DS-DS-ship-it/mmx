@@ -1,0 +1,58 @@
+#!/bin/bash
+
+echo "📦 MMX GStreamer Patch: Starting..."
+
+# Paths
+MMX_DIR="$HOME/mmx"
+BUILD_RS="$MMX_DIR/mmx-core/build.rs"
+CARGO_CONFIG="$MMX_DIR/.cargo/config.toml"
+
+# Step 1: Add proper build.rs if not exists
+echo "🔧 Writing patched build.rs to $BUILD_RS ..."
+mkdir -p "$MMX_DIR/mmx-core"
+cat > "$BUILD_RS" << 'EOF'
+fn main() {
+    println!("cargo:rustc-link-search=native=/opt/homebrew/lib");
+    println!("cargo:rustc-link-search=native=/opt/homebrew/opt/glib/lib");
+    println!("cargo:rustc-link-search=native=/opt/homebrew/opt/gettext/lib");
+    println!("cargo:rustc-link-search=native=/opt/homebrew/opt/gstreamer/lib");
+    println!("cargo:rustc-link-search=native=/opt/homebrew/opt/gst-plugins-base/lib");
+
+    println!("cargo:rustc-link-lib=gstreamer-1.0");
+    println!("cargo:rustc-link-lib=gobject-2.0");
+    println!("cargo:rustc-link-lib=gio-2.0");
+    println!("cargo:rustc-link-lib=glib-2.0");
+    println!("cargo:rustc-link-lib=intl");
+    println!("cargo:rustc-link-lib=iconv");
+}
+EOF
+
+# Step 2: Set cargo config flags
+echo "🛠️ Writing .cargo/config.toml ..."
+mkdir -p "$MMX_DIR/.cargo"
+cat > "$CARGO_CONFIG" << 'EOF'
+[target.aarch64-apple-darwin]
+rustflags = [
+  "-L", "/opt/homebrew/lib",
+  "-L", "/opt/homebrew/opt/glib/lib",
+  "-L", "/opt/homebrew/opt/gettext/lib",
+  "-L", "/opt/homebrew/opt/gstreamer/lib",
+  "-L", "/opt/homebrew/opt/gst-plugins-base/lib"
+]
+EOF
+
+# Step 3: Set environment variables
+echo "🌿 Exporting environment variables..."
+export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/opt/glib/lib/pkgconfig:/opt/homebrew/opt/gstreamer/lib/pkgconfig:/opt/homebrew/opt/gst-plugins-base/lib/pkgconfig"
+export LIBRARY_PATH="/opt/homebrew/lib"
+export C_INCLUDE_PATH="/opt/homebrew/include"
+
+# Step 4: Rebuild
+echo "🧹 Cleaning build..."
+cd "$MMX_DIR"
+cargo clean
+
+echo "🚀 Building mmx-cli with GStreamer support..."
+cargo build -p mmx-cli --release -F mmx-core/gst
+
+echo "✅ Done! If no errors, MMX is now fully patched and ready."

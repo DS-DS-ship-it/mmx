@@ -1,0 +1,70 @@
+name: Auto pay on PR merge (bounty label)
+on:
+  pull_request:
+    types: [closed]
+permissions:
+  contents: read
+jobs:
+  pay:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Resolve payee + amount
+        id: info
+        run: |
+          labels='${{ toJson(github.event.pull_request.labels.*.name) }}'
+          # Expect "bounty:\$50" or "bounty:\$50.00"
+          amount=$(printf "%s" "$labels" | tr -d '"[]' | tr ',' '\n' | sed -nE 's/.*bounty:\$?([0-9]+(\.[0-9]{1,2})?).*/\1/p' | head -1)
+          # Optional "pay:@user"
+          payto=$(printf "%s" "$labels" | tr -d '"[]' | tr ',' '\n' | sed -nE 's/.*pay:@([A-Za-z0-9_-]+).*/\1/p' | head -1)
+          [[ -z "$payto" ]] && payto='${{ github.event.pull_request.user.login }}'
+          if [[ -z "$amount" ]]; then
+            echo "No bounty label found (bounty:$AMOUNT). Skipping."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            cents=$(python3 - <<PY
+amt="${amount}"
+from decimal import Decimal
+print(int(Decimal(amt)*100))
+PY
+)
+            echo "amount_cents=$cents" >> $GITHUB_OUTPUT
+            echo "payto=$payto" >> $GITHUB_OUTPUT
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Abort if skipping
+        if: steps.info.outputs.skip == 'true'
+        run: echo "Skipping payout."
+      - name: Check payouts enabled
+        if: steps.info.outputs.skip != 'true'
+        run: |
+          echo "PAYOUTS_ENABLED=${{ vars.STRIPE_PAYOUTS_ENABLED }}"
+          test "${{ vars.STRIPE_PAYOUTS_ENABLED }}" = "true" || { echo "❌ STRIPE_PAYOUTS_ENABLED != true"; exit 1; }
+      - name: Lookup Stripe account
+        if: steps.info.outputs.skip != 'true'
+        id: acct
+        run: |
+          GH="${{ steps.info.outputs.payto }}"
+          ACCT=$(jq -r --arg gh "$GH" '.[$gh] // empty' .github/contributors.json)
+          [[ -z "$ACCT" ]] && { echo "❌ No Stripe account mapped for $GH"; exit 1; }
+          echo "acct=$ACCT" >> $GITHUB_OUTPUT
+      - name: Transfer payout
+        if: steps.info.outputs.skip != 'true'
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        run: |
+          ACCT="${{ steps.acct.outputs.acct }}"
+          AMOUNT="${{ steps.info.outputs.amount_cents }}"
+          MEMO="PR #${{ github.event.pull_request.number }} merged"
+          RES=$(curl -sS https://api.stripe.com/v1/transfers \
+            -u "$STRIPE_SECRET_KEY:" \
+            -d amount="$AMOUNT" \
+            -d currency="usd" \
+            -d destination="$ACCT" \
+            -d description="$MEMO")
+          echo "$RES" | jq .
+          ID=$(echo "$RES" | jq -r .id)
+          [[ -z "$ID" || "$ID" == "null" ]] && { echo "❌ Transfer failed"; exit 1; }
+          echo "✅ Paid $AMOUNT cents to $ACCT for $MEMO"

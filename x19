@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Usage:
+#   chmod +x fix_tap.sh
+#   ./fix_tap.sh                 # assumes repo at ~/mmx
+#   ./fix_tap.sh /path/to/repo   # optional custom path
+
+ROOT="${1:-"$HOME/mmx"}"
+README="$ROOT/README.md"
+
+# Detect GitHub user from gh(1) if available; otherwise use $GH_USER or a placeholder.
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  GH_USER="$(gh api user -q '.login')"
+else
+  GH_USER="${GH_USER:-your-github-username}"
+fi
+
+TAP="$GH_USER/mmx-remux"
+
+echo "📦 Repo root: $ROOT"
+echo "📝 README:    $README"
+echo "🍺 Tap:       $TAP"
+
+# Sanity checks
+test -d "$ROOT" || { echo "❌ Repo root not found: $ROOT"; exit 1; }
+test -f "$README" || { echo "❌ README.md not found at $README"; exit 1; }
+command -v git >/dev/null || { echo "❌ git not found"; exit 1; }
+
+cd "$ROOT"
+
+# Replace __TAP__ safely using a non-slash delimiter and \Q...\E to escape metacharacters.
+before_hash="$(git rev-parse HEAD 2>/dev/null || echo 'no-git')"
+perl -0777 -pi -e "s#__TAP__#\\Q$TAP\\E#g" "$README"
+
+# Verify replacement
+if grep -q '__TAP__' "$README"; then
+  echo "❌ Placeholder __TAP__ still present in README.md"
+  exit 1
+fi
+
+# Commit only if there are changes staged/unstaged.
+if ! git diff --quiet -- "$README" || ! git diff --cached --quiet -- "$README"; then
+  git add "$README"
+  git commit -m "docs: replace __TAP__ with $TAP in README"
+  after_hash="$(git rev-parse HEAD)"
+  echo "✅ Committed change: $before_hash → $after_hash"
+else
+  echo "ℹ️  No changes to commit (README already had the correct tap)."
+fi
+
+# Show the Homebrew block for a quick visual check
+echo
+echo "── Homebrew block ──"
+awk '/^### Homebrew/,/^```$/' "$README" || true
+echo "────────────────────"
+echo "✅ Done."

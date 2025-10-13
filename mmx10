@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+OWNER="${OWNER:-$(gh api user -q .login 2>/dev/null || echo DS-DS-ship-it)}"
+REPO="${REPO:-mmx}"
+REMOTE_URL="https://github.com/${OWNER}/${REPO}.git"
+TAP_REPO="${OWNER}/homebrew-tap"
+TAP_URL="https://github.com/${TAP_REPO}.git"
+
+root="$(pwd)"
+cd "$root"
+
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { git init; git add -A; git commit -m "init"; }
+
+git remote remove origin 2>/dev/null || true
+git remote add origin "$REMOTE_URL"
+
+# Fix anyhow! macro usage if needed
+if grep -R --line-number -E '\banyhow!\(' mmx-core 2>/dev/null | grep -q .; then
+  :
+else
+  perl -0777 -pe 's/\banyhow!\(/anyhow::anyhow!(/g' -i mmx-core/src/*.rs mmx-core/src/**/*.rs 2>/dev/null || true
+fi
+
+# Ensure Rust targets
+command -v rustup >/dev/null 2>&1 && {
+  rustup target add aarch64-apple-darwin x86_64-apple-darwin >/dev/null 2>&1 || true
+}
+
+# Version/tag detection
+VER="$(awk -F'"' '/^version *= *"/{print $2; exit}' mmx-cli/Cargo.toml)"
+TAG="v${VER}"
+
+# Build both arches
+bash -lc 'source scripts/env_arch.sh aarch64-apple-darwin; cargo build -p mmx-cli -F mmx-core/gst --release --target aarch64-apple-darwin'
+bash -lc 'source scripts/env_arch.sh x86_64-apple-darwin; cargo build -p mmx-cli -F mmx-core/gst --release --target x86_64-apple-darwin'
+
+# Universal binary + dist
+mkdir -p target/universal-apple-darwin/release dist
+lipo -create \
+  -output target/universal-apple-darwin/release/mmx \
+  target/aarch64-apple-darwin/release/mmx-cli \
+  target/x86_64-apple-darwin/release/mmx-cli
+tar -czf dist/mmx-macos-universal.tar.gz -C target/universal-apple-darwin/release mmx
+SHA="$(shasum -a 256 dist/mmx-macos-universal.tar.gz | awk "{print \$1}")"
+
+# CHANGELOG stub if missing
+if [ ! -f CHANGELOG.md ]; then
+  cat > CHANGELOG.md <<EOF
+# Changelog
+
+## ${TAG}
+- Universal macOS build (arm64 + x86_64)
+- Packaging + release automation
+EOF
+  git add CHANGELOG.md
+fi
+
+# Commit artifacts (lightweight metadata only)
+git add -A
+git commit -m "Release ${TAG}" || true
+git tag -f "${TAG}"
+
+# Push
+git push -u origin "$(git rev-parse --abbrev-ref HEAD)" || true
+git push --tags || true
+
+# GitHub Release
+if ! gh release view "${TAG}" >/dev/null 2>&1; then
+  gh release create "${TAG}" \
+    dist/mmx-macos-universal.tar.gz \
+    --title "MMX ${TAG}" \
+    --notes-file CHANGELOG.md
+else
+  gh release upload "${TAG}" dist/mmx-macos-universal.tar.gz --clobber
+fi
+
+# Create/update CI workflows
+mkdir -p .github/workflows
+cat > .github/workflows/ci.yml <<'YML'
+name: CI
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - name: Build (arm64)
+        run: bash -lc 'source scripts/env_arch.sh aarch64-apple-darwin; cargo build -p mmx-cli -F mmx-core/gst --release --target aarch64-apple-darwin'
+      - name: Build (x86_64)
+        run: bash -lc 'source scripts/env_arch.sh x86_64-apple-darwin; cargo build -p mmx-cli -F mmx-core/gst --release --target x86_64-apple-darwin'
+      - name: Lipo universal
+        run: |
+          mkdir -p target/universal-apple-darwin/release
+          lipo -create \
+            -output target/universal-apple-darwin/release/mmx \
+            target/aarch64-apple-darwin/release/mmx-cli \
+            target/x86_64-apple-darwin/release/mmx-cli
+YML
+
+cat > .github/workflows/release.yml <<YML
+name: Release
+on:
+  push:
+    tags: [ "v*" ]
+jobs:
+  release:
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - name: Build
+        run: |
+          bash -lc 'source scripts/env_arch.sh aarch64-apple-darwin; cargo build -p mmx-cli -F mmx-core/gst --release --target aarch64-apple-darwin'
+          bash -lc 'source scripts/env_arch.sh x86_64-apple-darwin; cargo build -p mmx-cli -F mmx-core/gst --release --target x86_64-apple-darwin'
+          mkdir -p target/universal-apple-darwin/release dist
+          lipo -create \
+            -output target/universal-apple-darwin/release/mmx \
+            target/aarch64-apple-darwin/release/mmx-cli \
+            target/x86_64-apple-darwin/release/mmx-cli
+          tar -czf dist/mmx-macos-universal.tar.gz -C target/universal-apple-darwin/release mmx
+          echo "SHA256=\$(shasum -a 256 dist/mmx-macos-universal.tar.gz | awk '{print \$1}')" >> \$GITHUB_ENV
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/mmx-macos-universal.tar.gz
+YML
+
+git add .github/workflows/*.yml
+git commit -m "ci: add build and release workflows" || true
+git push || true
+
+# Homebrew tap repo
+if ! gh repo view "$TAP_REPO" >/dev/null 2>&1; then
+  gh repo create "$TAP_REPO" --public -y
+  git clone "$TAP_URL" /tmp/homebrew-tap
+else
+  rm -rf /tmp/homebrew-tap
+  git clone "$TAP_URL" /tmp/homebrew-tap
+fi
+
+# Formula
+FORMULA_DIR="/tmp/homebrew-tap/Formula"
+mkdir -p "$FORMULA_DIR"
+cat > "${FORMULA_DIR}/mmx.rb" <<RUBY
+class Mmx < Formula
+  desc "Media swiss-army CLI"
+  homepage "https://github.com/${OWNER}/${REPO}"
+  version "${VER}"
+  url "https://github.com/${OWNER}/${REPO}/releases/download/${TAG}/mmx-macos-universal.tar.gz"
+  sha256 "${SHA}"
+  license "MIT"
+
+  def install
+    bin.install "mmx"
+  end
+
+  test do
+    system "#{bin}/mmx", "--help"
+  end
+end
+RUBY
+
+pushd /tmp/homebrew-tap >/dev/null
+git add Formula/mmx.rb
+git commit -m "mmx ${TAG} (sha256 ${SHA})" || true
+git push -u origin HEAD || true
+popd >/dev/null
+
+# Summary output
+echo "repo=https://github.com/${OWNER}/${REPO}"
+echo "release=https://github.com/${OWNER}/${REPO}/releases/tag/${TAG}"
+echo "tap=https://github.com/${TAP_REPO}"
+echo "brew_install_cmd=bash -lc 'brew tap ${OWNER}/tap && brew install mmx'"

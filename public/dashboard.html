@@ -1,0 +1,34 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>MMX Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{font-family:ui-sans-serif,system-ui,Arial;margin:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:#f6f6f6}</style>
+</head><body>
+<h1>MMX Contributors</h1>
+<div>
+  <label>GitHub login: <input id="gh" placeholder="DS-DS-ship-it"></label>
+  <label>Period (YYYY-MM): <input id="per" placeholder=""></label>
+  <button id="load">Load Earnings</button>
+</div>
+<h2>Contributors</h2>
+<pre id="contribs">Loading…</pre>
+<h2>Earnings</h2>
+<table id="earn"><thead><tr><th>Period</th><th>Category</th><th>Cents</th></tr></thead><tbody></tbody></table>
+<script>
+async function q(u, opt){ const r=await fetch(u,opt); return r.json(); }
+async function loadContribs(){ document.querySelector('#contribs').textContent=JSON.stringify(await q('/contributors'),null,2); }
+async function loadEarnings(){
+  const gh=document.querySelector('#gh').value.trim();
+  const per=document.querySelector('#per').value.trim();
+  if(!gh){ alert('enter github login'); return; }
+  const data=await q('/earnings?github_login='+encodeURIComponent(gh)+(per?('&period='+per):''));
+  const tb=document.querySelector('#earn tbody'); tb.innerHTML='';
+  data.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${r.period}</td><td>${r.category}</td><td>${r.sum_cents}</td>`;
+    tb.appendChild(tr);
+  });
+}
+document.querySelector('#load').onclick=loadEarnings;
+loadContribs();
+</script>
+</body></html>

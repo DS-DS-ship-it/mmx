@@ -1,0 +1,305 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${ROOT:-$HOME/mmx}"
+CLI="$ROOT/mmx-cli"
+VER="${VER:-0.2.2}"
+BRANCH="${BRANCH:-roadmap-autosetup}"
+TAP_USER="${TAP_USER:-DS-DS-ship-it}"        # change if needed
+TAP_REPO="${TAP_REPO:-mmx-remux}"            # change if needed
+FORMULA_NAME="${FORMULA_NAME:-mmx-remux}"
+
+test -d "$ROOT" || { echo "❌ Repo not found at $ROOT"; exit 1; }
+test -d "$CLI"  || { echo "❌ CLI crate not found at $CLI"; exit 1; }
+
+echo "📦 Repo: $ROOT"
+echo "🧰 CLI : $CLI"
+echo "🏷️  Version to set: $VER"
+echo
+
+cd "$ROOT"
+git checkout -B "$BRANCH"
+
+# ---------------------------
+# Phase 0 — Groundwork
+# ---------------------------
+
+# Bump version in mmx-cli/Cargo.toml (lightweight; keeps existing file intact)
+if grep -qE '^version *= *"' "$CLI/Cargo.toml"; then
+  awk -v ver="$VER" '
+    BEGIN{inpkg=0}
+    /^\[package\]/{inpkg=1; print; next}
+    inpkg && /^version *=/ {print "version = \"" ver "\""; inpkg=0; next}
+    {print}
+  ' "$CLI/Cargo.toml" > "$CLI/Cargo.toml.tmp" && mv "$CLI/Cargo.toml.tmp" "$CLI/Cargo.toml"
+else
+  # inject version just under [package]
+  awk -v ver="$VER" '
+    BEGIN{inpkg=0; injected=0}
+    /^\[package\]/{inpkg=1; print; next}
+    inpkg && !injected { print "version = \"" ver "\""; injected=1; inpkg=0 }
+    {print}
+  ' "$CLI/Cargo.toml" > "$CLI/Cargo.toml.tmp" && mv "$CLI/Cargo.toml.tmp" "$CLI/Cargo.toml"
+fi
+
+# changelog (keep-a-changelog style)
+if [ ! -f "$ROOT/CHANGELOG.md" ]; then
+cat > "$ROOT/CHANGELOG.md" <<EOF
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [${VER}] - $(date +%Y-%m-%d)
+### Added
+- Release scaffolding, smoke tests, Homebrew formula template, and GitHub Actions workflow.
+- \`mmx doctor\` basic checks for GStreamer elements and environment.
+
+### Changed
+- Bumped mmx-cli version to ${VER}.
+
+### Notes
+- Remuxer continues to use GStreamer-only path (no FFmpeg).
+EOF
+fi
+
+# ---------------------------
+# Phase 1 — doctor + smoke tests
+# ---------------------------
+
+# Add a simple doctor binary (no clap needed).
+mkdir -p "$CLI/src/bin"
+cat > "$CLI/src/bin/doctor.rs" <<'RS'
+use std::collections::BTreeMap;
+
+fn main() {
+    // Initialize GStreamer (reports Ok even if no plugins present).
+    if let Err(e) = gstreamer::init() {
+        eprintln!("❌ GStreamer init failed: {e}");
+        std::process::exit(1);
+    }
+
+    let required = [
+        // demux/mux
+        "qtdemux", "matroskademux",
+        "mp4mux", "matroskamux",
+        // parsers (common)
+        "h264parse", "aacparse",
+        // IO
+        "filesrc", "filesink",
+    ];
+
+    let mut report = BTreeMap::new();
+
+    for name in required {
+        let ok = gstreamer::ElementFactory::find(name).is_some();
+        report.insert(name.to_string(), ok);
+    }
+
+    // Print a friendly table + machine-readable JSON.
+    println!("🔎 mmx doctor — GStreamer elements");
+    for (k, v) in &report {
+        println!("  {:16} {}", k, if *v { "✅" } else { "❌" });
+    }
+
+    let have_all = report.values().all(|v| *v);
+    println!();
+    println!("JSON:");
+    println!("{}", serde_json::to_string_pretty(&report).unwrap());
+
+    if !have_all {
+        println!("\n⚠️  Missing elements. On macOS:");
+        println!("   brew install gst-plugins-base gst-plugins-good gst-plugins-bad");
+        std::process::exit(2);
+    }
+}
+RS
+
+# Ensure the bin is registered (idempotent)
+if ! grep -q 'name *= *"doctor"' "$CLI/Cargo.toml"; then
+  cat >> "$CLI/Cargo.toml" <<'EOF'
+
+[[bin]]
+name = "doctor"
+path = "src/bin/doctor.rs"
+EOF
+fi
+
+# Smoke tests (GStreamer-only fixtures + remux). No FFmpeg.
+mkdir -p "$ROOT/scripts" "$ROOT/fixtures"
+
+cat > "$ROOT/scripts/smoke_gen_fixture_mp4.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+OUT="${1:-$HOME/mmx/fixtures/short.mp4}"
+echo "🎬 Creating test fixture: $OUT"
+gst-launch-1.0 -q \
+  videotestsrc num-buffers=240 ! x264enc tune=zerolatency speed-preset=ultrafast ! h264parse ! mp4mux name=m \
+  audiotestsrc num-buffers=210 ! faac ! aacparse ! queue ! m. \
+  m. ! filesink location="$OUT"
+echo "✅ Fixture ready."
+SH
+chmod +x "$ROOT/scripts/smoke_gen_fixture_mp4.sh"
+
+cat > "$ROOT/scripts/smoke_remux_mp4_to_mkv.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+IN="${1:-$HOME/mmx/fixtures/short.mp4}"
+OUT="${2:-$HOME/mmx/fixtures/out.mkv}"
+echo "🔁 Remux: $IN → $OUT"
+"$HOME/mmx/target/release/mmx-remux" "$IN" "$OUT"
+echo "🔎 Inspect:"
+gst-discoverer-1.0 "$OUT" | sed -n '1,40p' || true
+echo "✅ Remux ok."
+SH
+chmod +x "$ROOT/scripts/smoke_remux_mp4_to_mkv.sh"
+
+# ---------------------------
+# Phase 2 — Packaging (universal2)
+# ---------------------------
+mkdir -p "$ROOT/dist"
+
+cat > "$ROOT/scripts/mmx_release.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="${ROOT:-$HOME/mmx}"
+CLI="$ROOT/mmx-cli"
+VER_FILE="$CLI/Cargo.toml"
+VER="$(grep -E '^version *= *"' "$VER_FILE" | sed -E 's/.*"([^"]+)".*/\1/')"
+DIST="$ROOT/dist"
+BIN_NAME="mmx-remux"
+PROJ="mmx-cli"
+
+echo "🏗️  Building ${BIN_NAME} v${VER} for macOS arm64 & x86_64…"
+rustup target add aarch64-apple-darwin x86_64-apple-darwin >/dev/null 2>&1 || true
+
+cargo build --release -p "${PROJ}" --bin "${BIN_NAME}" --target aarch64-apple-darwin
+cargo build --release -p "${PROJ}" --bin "${BIN_NAME}" --target x86_64-apple-darwin
+
+ARM="$ROOT/target/aarch64-apple-darwin/release/${BIN_NAME}"
+X86="$ROOT/target/x86_64-apple-darwin/release/${BIN_NAME}"
+
+UNIV="$DIST/${BIN_NAME}-v${VER}-macos-universal2"
+mkdir -p "$DIST"
+lipo -create -output "$UNIV" "$ARM" "$X86"
+chmod +x "$UNIV"
+
+echo "🧪 Verify slices:"
+lipo -info "$UNIV"
+echo
+
+TARBALL="$DIST/${BIN_NAME}-v${VER}-macos-universal2.tar.gz"
+( cd "$DIST" && tar -czf "$(basename "$TARBALL")" "$(basename "$UNIV")" )
+SHA="$(shasum -a 256 "$TARBALL" | awk '{print $1}')"
+
+echo "📦 Created:"
+echo "  $TARBALL"
+echo "🔐 sha256: $SHA"
+
+# Write a mini manifest for release tooling
+cat > "$DIST/release_manifest_${VER}.txt" <<EOF
+name=${BIN_NAME}
+version=${VER}
+universal_tar=$(basename "$TARBALL")
+sha256=${SHA}
+EOF
+
+echo
+echo "✅ Packaging complete."
+echo "   Next: create a GitHub Release for v${VER}, upload the tarball, and use the sha256 above."
+SH
+chmod +x "$ROOT/scripts/mmx_release.sh"
+
+# ---------------------------
+# Phase 3 — Homebrew formula template
+# ---------------------------
+mkdir -p "$ROOT/Formula"
+cat > "$ROOT/Formula/${FORMULA_NAME}.rb" <<'RUBY'
+class MmxRemux < Formula
+  desc "Native Rust remuxer on GStreamer (no FFmpeg)"
+  homepage "https://github.com/REPLACE_USER/REPLACE_REPO"
+  version "REPLACE_VERSION"
+
+  # Point this to the universal2 tarball uploaded on GitHub Releases
+  url "https://github.com/REPLACE_USER/REPLACE_REPO/releases/download/vREPLACE_VERSION/mmx-remux-vREPLACE_VERSION-macos-universal2.tar.gz"
+  sha256 "REPLACE_SHA256"
+
+  def install
+    bin.install "mmx-remux-v#{version}-macos-universal2" => "mmx-remux"
+  end
+
+  test do
+    system "#{bin}/mmx-remux", "--help"
+  end
+end
+RUBY
+
+# ---------------------------
+# Phase 5 — GitHub Actions
+# ---------------------------
+mkdir -p "$ROOT/.github/workflows"
+cat > "$ROOT/.github/workflows/release.yml" <<'YAML'
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-*'   # allow -alpha/-beta
+jobs:
+  build-macos-universal2:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Add macOS targets
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - name: Build arm64
+        run: cargo build --release -p mmx-cli --bin mmx-remux --target aarch64-apple-darwin
+      - name: Build x86_64
+        run: cargo build --release -p mmx-cli --bin mmx-remux --target x86_64-apple-darwin
+      - name: Make universal2
+        run: |
+          mkdir -p dist
+          lipo -create -output dist/mmx-remux $(pwd)/target/aarch64-apple-darwin/release/mmx-remux $(pwd)/target/x86_64-apple-darwin/release/mmx-remux
+          chmod +x dist/mmx-remux
+          tar -C dist -czf dist/mmx-remux-${GITHUB_REF_NAME}-macos-universal2.tar.gz mmx-remux
+      - name: Compute sha256
+        id: sha
+        run: echo "sha=$(shasum -a 256 dist/mmx-remux-${GITHUB_REF_NAME}-macos-universal2.tar.gz | awk '{print $1}')" >> $GITHUB_OUTPUT
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/mmx-remux-${{ github.ref_name }}-macos-universal2.tar.gz
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Show sha256 for Homebrew
+        run: echo "sha256=${{ steps.sha.outputs.sha }}"
+YAML
+
+# ---------------------------
+# Commit & tag
+# ---------------------------
+git add CHANGELOG.md "$CLI/Cargo.toml" \
+        "$CLI/src/bin/doctor.rs" \
+        "$ROOT/scripts/" \
+        "$ROOT/Formula/${FORMULA_NAME}.rb" \
+        "$ROOT/.github/workflows/release.yml"
+
+git commit -m "roadmap: Phase0-3/5 scaffolding (version ${VER}, doctor, smoke tests, universal2 packaging, brew formula template, GH Actions)"
+git tag -f "v${VER}"
+
+echo
+echo "✅ Phases 0–3(+5 scaffolding) ready."
+echo "   New tag: v${VER}"
+echo
+echo "Next steps:"
+echo "  1) Build release locally: $ROOT/scripts/mmx_release.sh"
+echo "  2) Run doctor + smoke test:"
+echo "     cargo build --release -p mmx-cli --bin doctor"
+echo "     $ROOT/target/release/doctor"
+echo "     $ROOT/scripts/smoke_gen_fixture_mp4.sh"
+echo "     cargo build --release -p mmx-cli --bin mmx-remux"
+echo "     $ROOT/scripts/smoke_remux_mp4_to_mkv.sh"
+echo "  3) Push tag to GitHub to trigger CI:  git push origin $BRANCH --tags"

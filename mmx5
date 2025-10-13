@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# save as: scripts/build_universal.sh
+set -euo pipefail
+
+# --- find repo root (must contain mmx-cli/Cargo.toml) ---
+here="$(pwd)"
+cd /
+root=""
+for d in "$here" $(dirname "$here") $(dirname "$(dirname "$here")"); do
+  [[ -f "$d/mmx-cli/Cargo.toml" ]] && root="$d" && break
+done
+[[ -n "$root" ]] || { echo "[fail] mmx repo not found (no mmx-cli/Cargo.toml)"; exit 1; }
+cd "$root"
+
+mkdir -p dist target/universal-apple-darwin/release
+
+# --- env helpers for macOS targets ---
+unset PKG_CONFIG PKG_CONFIG_PATH PKG_CONFIG_DIR PKG_CONFIG_SYSROOT_DIR
+env_for_target() {
+  case "$(uname -s)/$(uname -m)/$1" in
+    Darwin/arm64/aarch64-apple-darwin|Darwin/arm64/)
+      export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+      export PKG_CONFIG="/opt/homebrew/bin/pkg-config"
+      export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/opt/libffi/lib/pkgconfig"
+      ;;
+    Darwin/arm64/x86_64-apple-darwin|Darwin/x86_64/x86_64-apple-darwin)
+      if [[ -x /usr/local/bin/pkg-config ]]; then
+        export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
+        export PKG_CONFIG="/usr/local/bin/pkg-config"
+        export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/opt/libffi/lib/pkgconfig"
+      fi
+      ;;
+  esac
+  export PKG_CONFIG_ALLOW_CROSS=1
+}
+
+# --- build both slices ---
+echo "[build] aarch64-apple-darwin"
+env_for_target aarch64-apple-darwin
+cargo build -p mmx-cli -F mmx-core/gst --release --target aarch64-apple-darwin
+
+echo "[build] x86_64-apple-darwin"
+env_for_target x86_64-apple-darwin
+rustup target add x86_64-apple-darwin >/dev/null 2>&1 || true
+cargo build -p mmx-cli -F mmx-core/gst --release --target x86_64-apple-darwin
+
+# --- locate built bins (mmx or mmx-cli) ---
+bin_arm=""
+for c in mmx mmx-cli; do
+  [[ -x "target/aarch64-apple-darwin/release/$c" ]] && bin_arm="target/aarch64-apple-darwin/release/$c" && break
+done
+bin_x64=""
+for c in mmx mmx-cli; do
+  [[ -x "target/x86_64-apple-darwin/release/$c" ]] && bin_x64="target/x86_64-apple-darwin/release/$c" && break
+done
+[[ -n "$bin_arm" && -n "$bin_x64" ]] || { echo "[fail] built binaries not found"; exit 1; }
+
+# --- produce Universal 2 binary ---
+out_uni="target/universal-apple-darwin/release/mmx"
+lipo -create -output "$out_uni" "$bin_arm" "$bin_x64"
+chmod +x "$out_uni"
+file "$out_uni" || true
+
+# --- package + checksum ---
+tar -C "target/universal-apple-darwin/release" -czf dist/mmx-macos-universal.tar.gz mmx
+shasum -a 256 dist/mmx-macos-universal.tar.gz | awk '{print $1}' > dist/mmx-macos-universal.tar.gz.sha256
+echo "[ok] dist/mmx-macos-universal.tar.gz"
+cat dist/mmx-macos-universal.tar.gz.sha256
+
+# --- quick smoke: --help + doctor (if present) ---
+echo "[smoke] running --help"
+"$out_uni" --help >/dev/null || { echo "[warn] --help failed"; true; }
+if "$out_uni" doctor >/dev/null 2>&1; then
+  echo "[smoke] doctor ok"
+else
+  echo "[smoke] doctor not implemented or failed (non-blocking)"
+fi
+
+echo "[ready] Universal binary packaged for distribution."

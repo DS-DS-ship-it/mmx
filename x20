@@ -1,0 +1,264 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# --- Config ---
+ROOT="${1:-"$HOME/mmx"}"
+CLI="$ROOT/mmx-cli"
+REPO_NAME="${REPO_NAME:-mmx-remux}"
+DEFAULT_BRANCH="${DEFAULT_BRANCH:-main}"
+VERSION_TAG="${VERSION_TAG:-v0.1.0-alpha}"
+
+# Detect GitHub username.
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  GH_USER="$(gh api user -q '.login')"
+else
+  echo "❌ GitHub CLI not authenticated. Run: gh auth login"
+  exit 1
+fi
+
+REPO_SLUG="$GH_USER/$REPO_NAME"
+REPO_SSH="git@github.com:$REPO_SLUG.git"
+
+echo "📦 Repo root: $ROOT"
+echo "🧰 CLI crate: $CLI"
+echo "🏷️  Repo:     https://github.com/$REPO_SLUG"
+echo
+
+# --- Sanity checks ---
+test -d "$ROOT" || { echo "❌ $ROOT not found"; exit 1; }
+test -d "$CLI"  || { echo "❌ $CLI not found"; exit 1; }
+command -v git >/dev/null || { echo "❌ git not found"; exit 1; }
+
+mkdir -p "$ROOT/.github/workflows" "$ROOT/Formula" "$ROOT/scripts"
+
+# --- Ensure workspace resolver=2 and include mmx-cli ---
+if ! grep -q '^\[workspace\]' "$ROOT/Cargo.toml" 2>/dev/null; then
+  cat >>"$ROOT/Cargo.toml" <<'EOF_WS'
+
+[workspace]
+resolver = "2"
+members = ["mmx-cli"]
+EOF_WS
+else
+  awk '
+    BEGIN{inws=0; have_res=0; have_mem=0}
+    /^\[workspace\]/{print; inws=1; next}
+    inws && /^\[/{ if(!have_res) print "resolver = \"2\""; if(!have_mem) print "members = [\"mmx-cli\"]"; inws=0 }
+    inws && /resolver *=/{have_res=1}
+    inws && /members *=/{have_mem=1}
+    {print}
+    END{
+      if(inws){
+        if(!have_res) print "resolver = \"2\"";
+        if(!have_mem) print "members = [\"mmx-cli\"]";
+      }
+    }
+  ' "$ROOT/Cargo.toml" > "$ROOT/Cargo.toml.tmp" && mv "$ROOT/Cargo.toml.tmp" "$ROOT/Cargo.toml"
+fi
+
+# --- Inject repository URL and license into mmx-cli/Cargo.toml ---
+if ! grep -q '^\[package\]' "$CLI/Cargo.toml"; then
+  echo "❌ $CLI/Cargo.toml missing [package]; not overwriting."
+else
+  awk -v url="https://github.com/'"$REPO_SLUG"'" '
+    BEGIN{inpkg=0; have_repo=0; have_lic=0}
+    /^\[package\]/{print; inpkg=1; next}
+    inpkg && /^\[/{ 
+      if(!have_repo) print "repository = \"" url "\"";
+      if(!have_lic)  print "license = \"MIT\"";
+      inpkg=0
+    }
+    inpkg && /^repository *=/{have_repo=1}
+    inpkg && /^license *=/{have_lic=1}
+    {print}
+    END{
+      if(inpkg){
+        if(!have_repo) print "repository = \"" url "\"";
+        if(!have_lic)  print "license = \"MIT\"";
+      }
+    }
+  ' "$CLI/Cargo.toml" > "$CLI/Cargo.toml.tmp" && mv "$CLI/Cargo.toml.tmp" "$CLI/Cargo.toml"
+fi
+
+# --- Ensure LICENSE / CONTRIBUTING / CODE_OF_CONDUCT / RELEASE_CHECKLIST ---
+test -f "$ROOT/LICENSE" || cat >"$ROOT/LICENSE" <<'EOF_LIC'
+MIT License
+
+Copyright (c) 2025
+
+Permission is hereby granted, free of charge, to any person obtaining a copy...
+(Shortened for brevity—replace with full MIT text if you prefer.)
+EOF_LIC
+
+test -f "$ROOT/CONTRIBUTING.md" || cat >"$ROOT/CONTRIBUTING.md" <<'EOF_CONTRI'
+# Contributing
+
+- Use conventional commits (feat:, fix:, docs:, chore:, etc.).
+- Code must build on macOS and Linux with stable Rust.
+- Run `cargo fmt` and `cargo clippy` before PRs.
+EOF_CONTRI
+
+test -f "$ROOT/CODE_OF_CONDUCT.md" || cat >"$ROOT/CODE_OF_CONDUCT.md" <<'EOF_COC'
+# Code of Conduct
+Be kind. Harassment or discrimination is not tolerated. Report issues via GitHub.
+EOF_COC
+
+test -f "$ROOT/RELEASE_CHECKLIST.md" || cat >"$ROOT/RELEASE_CHECKLIST.md" <<'EOF_RCHK'
+# Release checklist
+
+- [ ] Bump version in mmx-cli/Cargo.toml.
+- [ ] Tag: `git tag vX.Y.Z && git push --tags`.
+- [ ] Check GitHub Actions release artifacts (macOS universal2, Linux).
+- [ ] Create/update Homebrew formula (update SHA256 of macOS tarball).
+- [ ] Update README examples if needed.
+EOF_RCHK
+
+# --- Clean README Homebrew block: remove any escaping (e.g. DS\-DS\-ship\-it\/mmx\-remux) ---
+README="$ROOT/README.md"
+if test -f "$README"; then
+  perl -0777 -i -pe '
+    s{
+      (###\ Homebrew[^\n]*\n```bash\n)
+      (.*?)
+      (\n```)}
+    }{
+      my ($a,$b,$c)=($1,$2,$3);
+      $b =~ s/\\-/-/g;
+      $b =~ s#\\/#/#g;
+      $a.$b.$c
+    }gsex
+  ' "$README"
+fi
+
+# --- GitHub Actions workflow (tag-driven release) ---
+cat >"$ROOT/.github/workflows/release.yml" <<'EOF_WF'
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  macos-universal2:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+      - name: Build arm64
+        run: |
+          cd mmx-cli
+          RUSTFLAGS="-C target-cpu=apple-m1" cargo build --release --target aarch64-apple-darwin --bin mmx-remux
+      - name: Build x86_64
+        run: |
+          cd mmx-cli
+          cargo build --release --target x86_64-apple-darwin --bin mmx-remux
+      - name: Lipo → universal2
+        run: |
+          mkdir -p dist
+          lipo -create \
+            target/aarch64-apple-darwin/release/mmx-remux \
+            target/x86_64-apple-darwin/release/mmx-remux \
+            -output dist/mmx-remux
+          chmod +x dist/mmx-remux
+          tar -C dist -czf mmx-remux-macos-universal2.tar.gz mmx-remux
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mmx-remux-macos-universal2.tar.gz
+
+  linux-x86_64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+      - name: Build
+        run: |
+          cd mmx-cli
+          cargo build --release --bin mmx-remux
+          mkdir -p dist
+          cp target/release/mmx-remux dist/
+          tar -C dist -czf mmx-remux-linux-x86_64.tar.gz mmx-remux
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mmx-remux-linux-x86_64.tar.gz
+EOF_WF
+
+# --- Homebrew formula template (sha256 to be updated after release) ---
+cat >"$ROOT/Formula/mmx-remux.rb" <<EOF_RB
+class MmxRemux < Formula
+  desc "Native Rust remuxer on GStreamer (no FFmpeg)"
+  homepage "https://github.com/$REPO_SLUG"
+  version "${VERSION_TAG#v}"
+  url "https://github.com/$REPO_SLUG/releases/download/$VERSION_TAG/mmx-remux-macos-universal2.tar.gz"
+  sha256 "__SHA256_TODO__"
+  license "MIT"
+
+  depends_on "gstreamer"
+
+  def install
+    bin.install "mmx-remux"
+  end
+
+  test do
+    system "\#{bin}/mmx-remux", "--help"
+  end
+end
+EOF_RB
+
+# --- Ensure git repo and main branch ---
+cd "$ROOT"
+if [ ! -d .git ]; then
+  git init
+  git checkout -b "$DEFAULT_BRANCH"
+fi
+
+# --- Commit files ---
+git add README.md Cargo.toml "$CLI/Cargo.toml" LICENSE CONTRIBUTING.md CODE_OF_CONDUCT.md RELEASE_CHECKLIST.md \
+        .github/workflows/release.yml Formula/mmx-remux.rb || true
+if ! git diff --cached --quiet; then
+  git commit -m "chore: repo polish, workflows, formula, metadata"
+fi
+
+# --- Create GitHub repo if missing, set remote, push ---
+if ! git remote get-url origin >/dev/null 2>&1; then
+  gh repo create "$REPO_SLUG" --public --source "." --remote=origin --push
+else
+  git push -u origin "$DEFAULT_BRANCH"
+fi
+
+# --- Tag & create a GitHub release (workflows will attach artifacts) ---
+if ! git rev-parse "$VERSION_TAG" >/dev/null 2>&1; then
+  git tag "$VERSION_TAG"
+  git push origin "$VERSION_TAG"
+fi
+
+# If the release doesn't exist yet, create it (artifacts get attached by the workflow).
+if ! gh release view "$VERSION_TAG" >/dev/null 2>&1; then
+  gh release create "$VERSION_TAG" --title "$VERSION_TAG" --notes "Alpha release of $REPO_NAME"
+fi
+
+echo
+echo "✅ Pushed to https://github.com/$REPO_SLUG and tagged $VERSION_TAG"
+echo "🛠  GitHub Actions will build artifacts for macOS universal2 and Linux."
+echo "🍺 After artifacts exist, compute SHA256 locally and update Formula/mmx-remux.rb:"
+cat <<'EOSHA'
+
+# Download artifact, compute SHA256 (macOS example):
+#   curl -L -o mmx-remux-macos-universal2.tar.gz \
+#     https://github.com/OWNER/REPO/releases/download/TAG/mmx-remux-macos-universal2.tar.gz
+#   shasum -a 256 mmx-remux-macos-universal2.tar.gz
+
+# Then edit Formula/mmx-remux.rb: replace __SHA256_TODO__ with the computed hash, commit, and push.
+
+# To publish the tap (local test):
+#   brew tap OWNER/REPO
+#   brew install --build-from-source Formula/mmx-remux.rb
+EOSHA

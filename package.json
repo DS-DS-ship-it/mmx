@@ -1,0 +1,20 @@
+{
+  "name": "mmx",
+  "version": "1.0.0",
+  "description": "Open-core multimedia stack in Rust: - `mmx-core` — engine & APIs (MIT) - `mmx-cli` — CLI (MIT) - `mmx-pro` — commercial add-ons (GPU/GUI/Cloud)",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "express": "^5.1.0",
+    "node-fetch": "^3.3.2",
+    "sqlite3": "^5.1.7",
+    "stripe": "^19.1.0"
+  }
+}

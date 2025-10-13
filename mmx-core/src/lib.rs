@@ -1,13 +1,13 @@
-pub mod shell_escape;
-pub mod backend;
-#[cfg(feature = "gst")]
-pub mod backend_gst;
-pub mod backend_mock;
-pub mod probe;
-pub mod qc;
-pub mod packager;
-pub mod doctor;
+use std::path::Path;
+use anyhow::Result;
+use symphonia::core::formats::FormatReader;
 
-pub mod ladder;
+pub fn write_mp4<R: FormatReader + 'static>(_reader: R, _output: &Path) -> Result<()> {
+    println!("🔧 Writing MP4 container (stub — implement me)");
+    Ok(())
+}
 
-pub mod probe_ffprobe_fallback;
+pub fn write_mkv<R: FormatReader + 'static>(_reader: R, _output: &Path) -> Result<()> {
+    println!("🔧 Writing MKV container (stub — implement me)");
+    Ok(())
+}

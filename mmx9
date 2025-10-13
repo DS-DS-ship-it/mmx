@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+OWNER="${OWNER:-$(gh api user -q .login 2>/dev/null || echo DS-DS-ship-it)}"
+REPO="${REPO:-mmx}"
+URL="https://github.com/${OWNER}/${REPO}.git"
+
+git rev-parse --is-inside-work-tree >/dev/null
+
+git remote remove origin 2>/dev/null || true
+git remote add origin "$URL"
+
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+git push -u origin "$BRANCH" --force
+git push --force --tags

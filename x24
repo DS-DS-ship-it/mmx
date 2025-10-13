@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# --- locate repo ---
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo "$HOME/mmx")"
+cd "$ROOT"
+
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  echo "❌ Not in a git repo and ~/mmx missing. cd to your repo root and re-run."
+  exit 1
+fi
+
+# --- derive owner/repo for links ---
+REMOTE_URL="$(git config --get remote.origin.url || echo '')"
+# supports: https://github.com/OWNER/REPO.git or git@github.com:OWNER/REPO.git
+if [[ "$REMOTE_URL" =~ github.com[:/]+([^/]+)/([^/.]+) ]]; then
+  GH_OWNER="${BASH_REMATCH[1]}"
+  GH_REPO="${BASH_REMATCH[2]}"
+else
+  GH_OWNER="${GH_OWNER:-your-github-username}"
+  GH_REPO="${GH_REPO:-mmx}"
+fi
+
+BRANCH="onboarding-payments-intake"
+git checkout -b "$BRANCH" >/dev/null 2>&1 || git checkout "$BRANCH"
+
+mkdir -p .github/ISSUE_TEMPLATE .github/workflows docs scripts
+
+# ---------- README additions ----------
+if [[ ! -f README.md ]]; then
+  echo "# $GH_REPO" > README.md
+fi
+
+if ! grep -q "## Get paid to contribute" README.md; then
+  cat >> README.md <<'EOF'
+
+---
+
+## Get paid to contribute
+
+We’re running a small paid-contributors program for MMX Remux.
+
+1) **Create a Stripe account** (free):  
+   👉 https://dashboard.stripe.com/register  
+   (Learn more: https://stripe.com/docs/connect)
+
+2) **Open the “Join paid contributor program” issue** (Issue Forms).  
+   We’ll review, approve, and email onboarding details.
+
+3) **Payment**: approved tasks are paid via Stripe.  
+   *Never paste secrets or private keys into GitHub.*
+
+---
+
+## Training quickstart (1-liner to use with any AI assistant)
+
+Copy/paste this:
+
+> *“Act as a senior Rust + GStreamer engineer pairing on MMX Remux (repo: https://github.com/OWNER/REPO).  
+> I’m working on issue #NNN: <title>.  
+> Please propose the **smallest** patch that: (1) builds on macOS and Linux, (2) passes `cargo clippy -- -D warnings`, (3) includes a smoke test or update to `scripts/`, and (4) hides risky code behind the `experimental` Cargo feature.  
+> Return: a diff (or file drops), test updates, and a conventional commit message.”*
+
+Replace `OWNER/REPO` and issue number, then paste the patch into a PR.
+
+---
+
+## Safe intake (samples & ideas)
+
+- **Samples / failing files:** open the “Sample intake” issue (drag-and-drop files or link to cloud storage).  
+- **Feature requests:** open the “Feature request” issue.  
+- CI ensures **main (master) always works**; unstable work lives behind the `experimental` Cargo feature or on branches.
+EOF
+
+  # Fill owner/repo in the training prompt
+  sed -i '' -e "s|OWNER/REPO|$GH_OWNER/$GH_REPO|g" README.md 2>/dev/null || \
+  sed -i -e "s|OWNER/REPO|$GH_OWNER/$GH_REPO|g" README.md
+fi
+
+# ---------- TRAINING.md ----------
+cat > docs/TRAINING.md <<'EOF'
+# MMX Remux — Contributor Training (Quick)
+
+## The one-liner prompt
+Use this with your AI assistant:
+
+> “Act as a senior Rust + GStreamer engineer pairing on MMX Remux.  
+> I’m working on issue #NNN: <title>.  
+> Propose the **smallest** patch that compiles on macOS + Linux, passes `cargo clippy -- -D warnings`, adds/updates a smoke test, and hides risky parts under the `experimental` Cargo feature.  
+> Return: a diff (or full files), test updates, and a conventional commit message.”
+
+## Expectations
+- Small PRs (< 500 changed lines).  
+- Green CI before merge.  
+- No secrets in issues/PRs.  
+- If in doubt: put code behind `--features experimental`.
+
+## Local dev
+```bash
+# build
+cargo build
+
+# format + lint
+cargo fmt --all
+cargo clippy --all-targets -- -D warnings
+
+# run smoke tests (add more in scripts/)
+scripts/smoke_gen_fixture_mp4.sh
+scripts/smoke_remux_mp4_to_mkv.sh

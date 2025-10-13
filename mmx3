@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# scripts/fix_gst_link_macos.sh
+# Usage:
+#   bash scripts/fix_gst_link_macos.sh aarch64-apple-darwin
+#   bash scripts/fix_gst_link_macos.sh x86_64-apple-darwin
+#   bash scripts/fix_gst_link_macos.sh universal
+set -euo pipefail
+
+target="${1:-aarch64-apple-darwin}"
+
+env_for_target() {
+  case "$(uname -s)/$(uname -m)/$1" in
+    Darwin/arm64/aarch64-apple-darwin|Darwin/arm64/)
+      export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+      export PKG_CONFIG="/opt/homebrew/bin/pkg-config"
+      export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/opt/libffi/lib/pkgconfig"
+      ;;
+    Darwin/arm64/x86_64-apple-darwin|Darwin/x86_64/x86_64-apple-darwin)
+      if [[ -x /usr/local/bin/pkg-config ]]; then
+        export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
+        export PKG_CONFIG="/usr/local/bin/pkg-config"
+        export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/opt/libffi/lib/pkgconfig"
+      fi
+      ;;
+    *)
+      :
+      ;;
+  esac
+  unset PKG_CONFIG_SYSROOT_DIR PKG_CONFIG_DIR
+  export PKG_CONFIG_ALLOW_CROSS=1
+}
+
+check_gst_arch() {
+  local pcdir libdir lib fileout okarch
+  pcdir="$("$PKG_CONFIG" --variable=pcfiledir gstreamer-1.0 2>/dev/null || true)"
+  libdir="$("$PKG_CONFIG" --variable=libdir gstreamer-1.0 2>/dev/null || true)"
+  fileout=""
+  okarch=""
+
+  if [[ -n "${libdir:-}" && -r "$libdir/libgstreamer-1.0.dylib" ]]; then
+    fileout="$(file -b "$libdir/libgstreamer-1.0.dylib" || true)"
+  fi
+
+  case "$target" in
+    aarch64-apple-darwin) [[ "$fileout" == *"arm64"* ]] && okarch=1 ;;
+    x86_64-apple-darwin)  [[ "$fileout" == *"x86_64"* ]] && okarch=1 ;;
+  esac
+
+  echo "[gst] pcdir=${pcdir:-?} libdir=${libdir:-?}"
+  [[ -n "$fileout" ]] && echo "[gst] libgstreamer-1.0.dylib: $fileout" || echo "[gst] libgstreamer-1.0.dylib: not found"
+
+  if [[ -z "${okarch:-}" ]]; then
+    echo "[fix] installing GStreamer for $target"
+    if [[ "$target" == "aarch64-apple-darwin" ]]; then
+      command -v brew >/dev/null || { echo "Homebrew missing"; exit 1; }
+      brew list gstreamer >/dev/null 2>&1 || brew install gstreamer
+      brew list gst-plugins-base >/dev/null 2>&1 || brew install gst-plugins-base
+      brew list gst-plugins-good >/dev/null 2>&1 || brew install gst-plugins-good
+    else
+      command -v brew >/dev/null || { echo "Homebrew missing"; exit 1; }
+      arch -x86_64 brew list gstreamer >/dev/null 2>&1 || arch -x86_64 brew install gstreamer
+      arch -x86_64 brew list gst-plugins-base >/dev/null 2>&1 || arch -x86_64 brew install gst-plugins-base
+      arch -x86_64 brew list gst-plugins-good >/dev/null 2>&1 || arch -x86_64 brew install gst-plugins-good
+    fi
+  fi
+}
+
+build_target() {
+  echo "[build] target=$1"
+  cargo clean -p mmx-cli || true
+  RUSTFLAGS="" cargo build -p mmx-cli -F mmx-core/gst --release --target "$1"
+}
+
+make_universal() {
+  echo "[lipo] creating Universal 2 binary"
+  mkdir -p target/universal-apple-darwin/release
+  lipo -create \
+    -output target/universal-apple-darwin/release/mmx \
+    target/aarch64-apple-darwin/release/mmx-cli \
+    target/x86_64-apple-darwin/release/mmx-cli
+  install_name_tool -id "@rpath/mmx" target/universal-apple-darwin/release/mmx || true
+  mkdir -p dist
+  tar -C target/universal-apple-darwin/release -czf dist/mmx-macos-universal.tar.gz mmx
+  shasum -a 256 dist/mmx-macos-universal.tar.gz | awk '{print $1}' > dist/mmx-macos-universal.tar.gz.sha256
+  echo "[ok] dist/mmx-macos-universal.tar.gz"
+}
+
+case "$target" in
+  aarch64-apple-darwin|x86_64-apple-darwin)
+    env_for_target "$target"
+    echo "[env] PKG_CONFIG=$PKG_CONFIG"
+    echo "[env] PATH=$(echo "$PATH" | tr ':' '\n' | head -n 3 | paste -sd ':' -)"
+    check_gst_arch
+    build_target "$target"
+    ;;
+
+  universal)
+    # arm64 slice
+    target=aarch64-apple-darwin
+    env_for_target "$target"
+    echo "[env arm64] PKG_CONFIG=$PKG_CONFIG"
+    check_gst_arch
+    build_target "$target"
+
+    # x86_64 slice
+    target=x86_64-apple-darwin
+    env_for_target "$target"
+    echo "[env x86_64] PKG_CONFIG=$PKG_CONFIG"
+    check_gst_arch
+    build_target "$target"
+
+    make_universal
+    ;;
+
+  *)
+    echo "usage: $0 {aarch64-apple-darwin|x86_64-apple-darwin|universal}"
+    exit 1
+    ;;
+esac

@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${ROOT:-$HOME/mmx}"
+REPO_NAME="${REPO_NAME:-mmx-remux}"
+
+cd "$ROOT"
+
+# Figure out your GitHub username for the tap (falls back to placeholder).
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  GH_USER="$(gh api user -q '.login')"
+else
+  GH_USER="${GH_USER:-your-github-username}"
+fi
+TAP="$GH_USER/$REPO_NAME"
+
+echo "🔧 Using tap: $TAP"
+
+# 1) Replace __TAP__ everywhere (portable in-place using perl).
+perl -pi -e "s/__TAP__/$TAP/g" README.md 2>/dev/null || true
+
+# 2) (Re)create RELEASE_CHECKLIST.md
+cat > RELEASE_CHECKLIST.md <<'EOF'
+# Release checklist — MMX Remux
+
+## Preflight
+- [ ] `cargo build --release` succeeds on macOS + Linux
+- [ ] `mmx-remux --help` looks correct
+- [ ] `README.md` install examples match tap and version
+- [ ] Version bumped in `mmx-cli/Cargo.toml` (e.g. 0.1.0-alpha.1)
+
+## Tag & GitHub Release
+- [ ] Tag: `git tag vX.Y.Z && git push --tags`
+- [ ] CI artifacts appear on the tag (universal2 macOS, linux x86_64)
+- [ ] Create GitHub Release from the tag and attach binaries
+
+## Homebrew (tap)
+- [ ] Update `Formula/mmx-remux.rb` with new version, SHA256, URL
+- [ ] `brew tap <your-username>/mmx-remux`
+- [ ] `brew install mmx-remux`
+- [ ] `mmx-remux --version` prints vX.Y.Z
+
+## Verify
+- [ ] Remux sanity: `mmx-remux in.mp4 out.mkv`
+- [ ] Validate: `gst-discoverer-1.0 out.mkv` (streams, duration OK)
+
+## Announce
+- [ ] Changelog entry
+- [ ] Open an Issue for next milestone (bugs/requests collected)
+EOF
+
+# 3) Show quick preview so you can confirm
+echo
+echo "── README Homebrew block ──"
+awk '/^### Homebrew/,/^```$/' README.md || true
+echo "───────────────────────────"
+
+# 4) Stage and commit (if in a git repo)
+if [ -d .git ]; then
+  git add README.md RELEASE_CHECKLIST.md || true
+  if ! git diff --cached --quiet; then
+    git commit -m "docs: fill Homebrew tap in README; add RELEASE_CHECKLIST.md"
+    echo "✅ Committed changes."
+  else
+    echo "ℹ️ No doc changes to commit."
+  fi
+else
+  echo "ℹ️ Not a git repo; skipped commit."
+fi
+
+# 5) Re-run the check snippet inline
+echo
+echo "── Re-check ──"
+OK=1
+test -f README.md && echo "✅ README.md exists" || { echo "❌ README.md missing"; OK=0; }
+if grep -q "__TAP__" README.md; then
+  echo "❌ __TAP__ still present in README.md"
+  OK=0
+else
+  echo "✅ Tap placeholder replaced in README.md"
+fi
+test -f RELEASE_CHECKLIST.md && echo "✅ RELEASE_CHECKLIST.md exists" || { echo "❌ RELEASE_CHECKLIST.md missing"; OK=0; }
+echo
+[ "$OK" -eq 1 ] && echo "🎉 All set." || echo "⚠️ Needs attention."

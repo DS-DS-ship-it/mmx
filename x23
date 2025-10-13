@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$HOME/mmx"
+CLI="$ROOT/mmx-cli"
+
+echo "➕ Add serde_json to mmx-cli (for doctor JSON output)…"
+cd "$CLI"
+cargo add serde_json@1 >/dev/null
+
+echo "🛠️  Build doctor and run it…"
+cd "$ROOT"
+cargo build --release -p mmx-cli --bin doctor
+"$ROOT/target/release/doctor" || true
+
+echo
+echo "🎬 Smoke: make a short MP4 and remux to MKV…"
+cargo build --release -p mmx-cli --bin mmx-remux
+"$ROOT/scripts/smoke_gen_fixture_mp4.sh"
+"$ROOT/scripts/smoke_remux_mp4_to_mkv.sh"
+
+echo
+echo "📦 (Optional) Build universal2 tarball for a release…"
+"$ROOT/scripts/mmx_release.sh"
+
+# Fill Homebrew formula placeholders from the release manifest
+VER=$(grep -E '^version *= *"' "$CLI/Cargo.toml" | sed -E 's/.*"([^"]+)".*/\1/')
+MAN="$ROOT/dist/release_manifest_${VER}.txt"
+if [[ -f "$MAN" ]]; then
+  SHA=$(awk -F= '/^sha256/{print $2}' "$MAN")
+  USER="DS-DS-ship-it"
+  REPO="mmx-remux"
+  FORM="$ROOT/Formula/mmx-remux.rb"
+
+  # Escape slashes for sed (macOS BSD sed)
+  URL_USER_REPO_ESC=$(printf '%s' "$USER/$REPO" | sed 's/[\/&]/\\&/g')
+
+  sed -i '' \
+    -e "s/REPLACE_USER\/REPLACE_REPO/$URL_USER_REPO_ESC/g" \
+    -e "s/REPLACE_VERSION/$VER/g" \
+    -e "s/REPLACE_SHA256/$SHA/g" \
+    "$FORM"
+
+  echo "🍺 Filled Homebrew formula:"
+  sed -n '1,80p' "$FORM"
+else
+  echo "ℹ️  No manifest found at $MAN (skip formula fill). Run $ROOT/scripts/mmx_release.sh first."
+fi
+
+echo
+echo "✅ Done."

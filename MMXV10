@@ -1,0 +1,50 @@
+#!/bin/bash
+set -euo pipefail
+
+OWNER="DS-DS-ship-it"
+REPO="mmx"
+
+# 1️⃣ Add BUSINESS.md with open-core revenue model
+cat > BUSINESS.md <<'EOF'
+# MMX Business Model — Open-Core + Contributor Share
+
+**MMX** is an open-core media engine (MIT base) with commercial extensions.
+
+## License Tiers
+| Tier | Price | Features |
+|------|--------|-----------|
+| Community | Free | CLI + Core SDK |
+| Pro | $29/mo | GPU Acceleration, Auto-Mastering |
+| Studio | $99/mo | Cloud Scheduler + GUI |
+| Enterprise | Custom | SLA + Private Modules |
+
+## Contributor Program
+- 30% of revenue is reserved for active contributors (per commit-weighted pool).
+- Payments are issued monthly via Stripe Connect.
+- Apply at: https://buy.stripe.com
+
+## Support Channels
+- Discussions: https://github.com/$OWNER/$REPO/discussions
+- Issues: https://github.com/$OWNER/$REPO/issues
+- Email: support@mmx.ai
+EOF
+
+git add BUSINESS.md
+git commit -m "Add open-core business model"
+git push
+
+# 2️⃣ Add README badge + link
+BADGE='[![Sponsor](https://img.shields.io/badge/Sponsor-MMX-orange)](https://buy.stripe.com)'
+echo -e "\n$BADGE" >> README.md
+git add README.md
+git commit -m "Add sponsor badge"
+git push
+
+# 3️⃣ Create a pinned discussion for contributors
+CAT_ID="$(gh api "repos/$OWNER/$REPO/discussions/categories" --jq '.[0].id')"
+gh api -X POST "repos/$OWNER/$REPO/discussions" \
+  -f title="💼 MMX Contributor Program" \
+  -f body="Interested in earning a share of MMX’s revenue? Join the Contributor Program via Stripe Connect. 30% of Pro revenue is distributed monthly to contributors." \
+  -f category_id="$CAT_ID"
+
+echo "✅ MMX business model deployed at https://github.com/$OWNER/$REPO"

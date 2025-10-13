@@ -1,0 +1,32 @@
+# paths
+ROOT="$HOME/mmx"
+README="$ROOT/README.md"
+
+# safety backup
+cp "$README" "$README.bak.before_homebrew_fix"
+
+# normalize the Homebrew code block (```bash ... ```)
+awk '
+  BEGIN{in_homebrew=0; in_fence=0}
+  /^### Homebrew/ { in_homebrew=1; print; next }
+  in_homebrew && /^```bash$/ { in_fence=1; print; next }
+  in_homebrew && in_fence && /^```$/ { in_fence=0; in_homebrew=0; print; next }
+  in_fence { gsub(/\\-/, "-"); gsub(/\\\//, "/"); print; next }
+  { print }
+' "$README" > "$README.tmp" && mv "$README.tmp" "$README"
+
+# preview the Homebrew block
+echo; echo "── Homebrew block preview ──"
+awk '
+  show=0
+  /^### Homebrew/ { show=1; print; next }
+  show && /^```bash$/ { print; in=1; next }
+  in && /^```$/ { print; exit }
+  in { print }
+' "$README"
+echo "────────────────────────────"; echo
+
+# commit it
+cd "$ROOT"
+git add README.md
+git commit -m "docs: normalize Homebrew block (remove backslash escapes)"

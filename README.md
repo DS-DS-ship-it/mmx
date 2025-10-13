@@ -1,29 +1,57 @@
-# MMX — Hybrid Media Engine (Open Core)
+# MMX Remux (alpha)
+**Native Rust remuxer on GStreamer (no FFmpeg).**
 
-Open-core multimedia stack in Rust:
-- `mmx-core` — engine & APIs (MIT)
-- `mmx-cli` — CLI (MIT)
-- `mmx-pro` — commercial add-ons (GPU/GUI/Cloud)
+MMX Remux stream-copies (remuxes) audio/video from one container to another using the GStreamer media stack via Rust bindings. No transcoding, no FFmpeg dependency.
 
-## Install (from source)
+> ⚠️ Alpha quality. Expect rough edges. Please file issues with sample files that break.
+
+## Features
+- Remux **MP4 ⇄ MKV ⇄ WebM** (depends on installed GStreamer plugins)
+- Zero re-encode (stream copy)
+- Auto input detection via demuxers
+- Simple CLI (`mmx-remux in.mp4 out.mkv`)
+- Cross-platform builds (macOS universal2, Linux x86_64)
+
+## Install
+
+### Homebrew (after first release)
 ```bash
-cargo build -p mmx-cli -F mmx-core/gst --release
-./target/release/mmx --help
-```
+brew tap DS-DS-ship-it/mmx-remux
+brew install mmx-remux
 
-## Pricing
-| Tier     | Includes                                     | Price |
-|----------|----------------------------------------------|-------|
-| Community| mmx-core + mmx-cli (MIT)                     | Free  |
-| Indie    | GPU accel + ABR presets + error aide         | $49  |
-| Studio   | GUI + Cloud scheduler + priority support     | $499 |
+---
 
-**Buy Pro:** https://example.com/buy
+## Get paid to contribute
 
-## Telemetry
-Opt-in only: set `MMX_TELEMETRY=on`. Captures command, exit, duration (no paths).
+We’re running a small paid-contributors program for MMX Remux.
 
-## License
-Core is MIT. Pro is commercial.
+1) **Create a Stripe account** (free):  
+   👉 https://dashboard.stripe.com/register  
+   (Learn more: https://stripe.com/docs/connect)
 
-[![Sponsor](https://img.shields.io/badge/Sponsor-MMX-orange)](https://buy.stripe.com)
+2) **Open the “Join paid contributor program” issue** (Issue Forms).  
+   We’ll review, approve, and email onboarding details.
+
+3) **Payment**: approved tasks are paid via Stripe.  
+   *Never paste secrets or private keys into GitHub.*
+
+---
+
+## Training quickstart (1-liner to use with any AI assistant)
+
+Copy/paste this:
+
+> *“Act as a senior Rust + GStreamer engineer pairing on MMX Remux (repo: https://github.com/DS-DS-ship-it/mmx).  
+> I’m working on issue #NNN: <title>.  
+> Please propose the **smallest** patch that: (1) builds on macOS and Linux, (2) passes `cargo clippy -- -D warnings`, (3) includes a smoke test or update to `scripts/`, and (4) hides risky code behind the `experimental` Cargo feature.  
+> Return: a diff (or file drops), test updates, and a conventional commit message.”*
+
+Replace `DS-DS-ship-it/mmx` and issue number, then paste the patch into a PR.
+
+---
+
+## Safe intake (samples & ideas)
+
+- **Samples / failing files:** open the “Sample intake” issue (drag-and-drop files or link to cloud storage).  
+- **Feature requests:** open the “Feature request” issue.  
+- CI ensures **main (master) always works**; unstable work lives behind the `experimental` Cargo feature or on branches.

@@ -1,0 +1,447 @@
+   Compiling serde_core v1.0.228
+   Compiling winnow v0.7.13
+   Compiling serde v1.0.228
+   Compiling equivalent v1.0.2
+   Compiling hashbrown v0.16.0
+   Compiling target-lexicon v0.12.16
+   Compiling heck v0.5.0
+   Compiling smallvec v1.15.1
+   Compiling version-compare v0.2.0
+   Compiling pkg-config v0.3.32
+   Compiling proc-macro2 v1.0.101
+   Compiling unicode-ident v1.0.19
+   Compiling quote v1.0.41
+   Compiling indexmap v2.11.4
+   Compiling libc v0.2.176
+   Compiling pin-project-lite v0.2.16
+   Compiling futures-core v0.3.31
+   Compiling pin-utils v0.1.0
+   Compiling futures-task v0.3.31
+   Compiling itoa v1.0.15
+   Compiling slab v0.4.11
+   Compiling memchr v2.7.6
+   Compiling once_cell v1.21.3
+   Compiling cfg-expr v0.15.8
+   Compiling autocfg v1.5.0
+   Compiling toml_parser v1.0.3
+   Compiling futures-channel v0.3.31
+   Compiling syn v2.0.106
+   Compiling num-traits v0.2.19
+   Compiling toml_datetime v0.7.2
+   Compiling bitflags v2.9.4
+   Compiling thiserror v1.0.69
+   Compiling toml_edit v0.23.6
+   Compiling paste v1.0.15
+   Compiling proc-macro-crate v3.4.0
+   Compiling either v1.15.0
+   Compiling fnv v1.0.7
+   Compiling bytes v1.10.1
+   Compiling itertools v0.13.0
+   Compiling num-integer v0.1.46
+   Compiling cfg-if v1.0.3
+   Compiling option-operations v0.5.0
+   Compiling muldiv v1.0.1
+   Compiling http v1.3.1
+   Compiling num-rational v0.4.2
+   Compiling toml_datetime v0.6.11
+   Compiling serde_spanned v0.6.9
+   Compiling mio v1.0.4
+   Compiling socket2 v0.6.0
+   Compiling toml_edit v0.22.27
+   Compiling http-body v1.0.1
+   Compiling signal-hook-registry v1.4.6
+   Compiling httparse v1.10.1
+   Compiling atomic_refcell v0.1.13
+   Compiling tracing-core v0.1.34
+   Compiling futures-macro v0.3.31
+   Compiling thiserror-impl v1.0.69
+   Compiling glib-macros v0.19.9
+   Compiling tokio-macros v2.5.0
+   Compiling serde_derive v1.0.228
+   Compiling log v0.4.28
+   Compiling tower-service v0.3.3
+   Compiling toml v0.8.23
+   Compiling rustversion v1.0.22
+   Compiling system-deps v6.2.2
+   Compiling futures-util v0.3.31
+   Compiling tokio v1.47.1
+   Compiling ryu v1.0.20
+   Compiling serde_json v1.0.145
+   Compiling utf8parse v0.2.2
+   Compiling rustix v0.38.44
+   Compiling anstyle-parse v0.2.7
+   Compiling glib-sys v0.19.8
+   Compiling gobject-sys v0.19.8
+   Compiling gstreamer-sys v0.22.6
+   Compiling gstreamer-base-sys v0.22.6
+   Compiling gio-sys v0.19.8
+   Compiling gstreamer-video-sys v0.22.6
+   Compiling futures-executor v0.3.31
+   Compiling gstreamer-audio-sys v0.22.6
+   Compiling gstreamer-pbutils-sys v0.22.6
+   Compiling glib v0.19.9
+   Compiling tracing v0.1.41
+   Compiling errno v0.3.14
+   Compiling aho-corasick v1.1.3
+   Compiling atomic-waker v1.1.2
+   Compiling sync_wrapper v1.0.2
+   Compiling is_terminal_polyfill v1.70.1
+   Compiling httpdate v1.0.3
+   Compiling regex-syntax v0.8.6
+   Compiling colorchoice v1.0.4
+   Compiling anstyle-query v1.1.4
+   Compiling anstyle v1.0.13
+   Compiling anyhow v1.0.100
+   Compiling powerfmt v0.2.0
+   Compiling tower-layer v0.3.3
+   Compiling percent-encoding v2.3.2
+   Compiling deranged v0.5.4
+   Compiling form_urlencoded v1.2.2
+   Compiling anstream v0.6.21
+   Compiling hyper v1.7.0
+   Compiling regex-automata v0.4.11
+   Compiling async-trait v0.1.89
+   Compiling http-body-util v0.1.3
+   Compiling time-core v0.1.6
+   Compiling home v0.5.11
+   Compiling strsim v0.11.1
+   Compiling mime v0.3.17
+   Compiling clap_lex v0.7.5
+   Compiling num-conv v0.1.0
+   Compiling regex v1.11.3
+   Compiling time v0.3.44
+   Compiling clap_builder v4.5.48
+   Compiling axum-core v0.4.5
+   Compiling which v6.0.3
+   Compiling hyper-util v0.1.17
+   Compiling serde_urlencoded v0.7.1
+   Compiling gstreamer v0.22.8
+   Compiling tower v0.5.2
+   Compiling clap_derive v4.5.47
+   Compiling serde_path_to_error v0.1.20
+   Compiling matchit v0.7.3
+   Compiling axum v0.7.9
+   Compiling clap v4.5.48
+   Compiling gstreamer-base v0.22.6
+   Compiling gstreamer-audio v0.22.6
+   Compiling gstreamer-video v0.22.8
+   Compiling gstreamer-pbutils v0.22.6
+   Compiling mmx-core v0.2.2 (/Users/derekwardlaw/mmx/mmx-core)
+warning: unused import: `anyhow::anyhow`
+ --> mmx-core/src/backend.rs:4:5
+  |
+4 | use anyhow::anyhow;
+  |     ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: value assigned to `emitted_start` is never read
+  --> mmx-core/src/backend_gst.rs:71:129
+   |
+71 | ...art { println!("{}", serde_json::json!({"event":"start"})); emitted_start = true; } emitted_start = true; }
+   |                                                                ^^^^^^^^^^^^^
+   |
+   = help: maybe it is overwritten before being read?
+   = note: `#[warn(unused_assignments)]` on by default
+
+warning: value assigned to `emitted_start` is never read
+  --> mmx-core/src/backend_gst.rs:74:126
+   |
+74 | ...   if run_opts.progress_json && !emitted_start { if run_opts.progress_json && !emitted_start { if !emitted_start {  emitted_start = tr...
+   |                                                                                                                        ^^^^^^^^^^^^^
+   |
+   = help: maybe it is overwritten before being read?
+
+warning: value assigned to `emitted_start` is never read
+  --> mmx-core/src/backend_gst.rs:74:150
+   |
+74 | ...mitted_start { if !emitted_start {  emitted_start = true; } emitted_start = true; } emitted_start = true; }
+   |                                                                ^^^^^^^^^^^^^
+   |
+   = help: maybe it is overwritten before being read?
+
+warning: value assigned to `emitted_start` is never read
+  --> mmx-core/src/backend_gst.rs:74:174
+   |
+74 | ...ed_start {  emitted_start = true; } emitted_start = true; } emitted_start = true; }
+   |                                                                ^^^^^^^^^^^^^
+   |
+   = help: maybe it is overwritten before being read?
+
+warning: unused variable: `start`
+  --> mmx-core/src/backend_gst.rs:78:13
+   |
+78 |         let start = std::time::Instant::now();
+   |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_start`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `maybe_emit_progress`
+  --> mmx-core/src/backend_gst.rs:82:17
+   |
+82 |         let mut maybe_emit_progress = |pos_ns: u128| {
+   |                 ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_maybe_emit_progress`
+
+warning: variable `duration_ns` is assigned to, but never used
+  --> mmx-core/src/backend_gst.rs:99:17
+   |
+99 |         let mut duration_ns: Option<u128> = None;
+   |                 ^^^^^^^^^^^
+   |
+   = note: consider using `_duration_ns` instead
+
+warning: value assigned to `duration_ns` is never read
+   --> mmx-core/src/backend_gst.rs:102:17
+    |
+102 |                 duration_ns = Some(dur.nseconds() as u128);
+    |                 ^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `emitted_start` is never read
+   --> mmx-core/src/backend_gst.rs:105:126
+    |
+105 | ...   if run_opts.progress_json && !emitted_start { if run_opts.progress_json && !emitted_start { if !emitted_start {  emitted_start = tr...
+    |                                                                                                                        ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `emitted_start` is never read
+   --> mmx-core/src/backend_gst.rs:105:150
+    |
+105 | ...mitted_start { if !emitted_start {  emitted_start = true; } emitted_start = true; } emitted_start = true; }
+    |                                                                ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `emitted_start` is never read
+   --> mmx-core/src/backend_gst.rs:105:174
+    |
+105 | ...ed_start {  emitted_start = true; } emitted_start = true; } emitted_start = true; }
+    |                                                                ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `emitted_start` is never read
+   --> mmx-core/src/backend_gst.rs:106:13
+    |
+106 |             emitted_start = true;
+    |             ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unused variable: `start`
+   --> mmx-core/src/backend_gst.rs:109:5
+    |
+109 | let start = std::time::Instant::now();
+    |     ^^^^^ help: if this is intentional, prefix it with an underscore: `_start`
+
+warning: unused variable: `pct`
+   --> mmx-core/src/backend_gst.rs:123:21
+    |
+123 |                 let pct = match (pos_ns, duration_ns) {
+    |                     ^^^ help: if this is intentional, prefix it with an underscore: `_pct`
+
+warning: unused variable: `duration_ns`
+  --> mmx-core/src/backend_gst.rs:85:17
+   |
+85 |         let mut duration_ns: Option<u128> = None;
+   |                 ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_duration_ns`
+
+warning: variable does not need to be mutable
+  --> mmx-core/src/backend_gst.rs:85:13
+   |
+85 |         let mut duration_ns: Option<u128> = None;
+   |             ----^^^^^^^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+  --> mmx-core/src/backend_gst.rs:86:13
+   |
+86 |         let mut duration_ns: Option<u128> = None;
+   |             ----^^^^^^^^^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> mmx-core/src/backend_gst.rs:82:13
+   |
+82 |         let mut maybe_emit_progress = |pos_ns: u128| {
+   |             ----^^^^^^^^^^^^^^^^^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: unused variable: `w`
+  --> mmx-core/src/ladder.rs:50:33
+   |
+50 | pub fn suggest_ladder_from_dims(w: u32, h: u32) -> Ladder {
+   |                                 ^ help: if this is intentional, prefix it with an underscore: `_w`
+
+warning: variable does not need to be mutable
+ --> mmx-core/src/probe_ffprobe_fallback.rs:8:9
+  |
+8 |     let mut base = vec![
+  |         ----^^^^
+  |         |
+  |         help: remove this `mut`
+
+warning: `mmx-core` (lib) generated 21 warnings (run `cargo fix --lib -p mmx-core` to apply 5 suggestions)
+   Compiling mmx-cli v0.2.2 (/Users/derekwardlaw/mmx/mmx-cli)
+warning: unused variable: `end_sec`
+   --> mmx-cli/src/compat_main.rs:175:18
+    |
+175 |     let (ss_sec, end_sec) = {
+    |                  ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_end_sec`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: `mmx-cli` (bin "mmx-compat") generated 1 warning
+error: linking with `cc` failed: exit status: 1
+  |
+  = note:  "cc" "/var/folders/kh/_jfld9zx3j78t5fjj9qc2v4m0000gn/T/rustcYPg3tQ/symbols.o" "<17 object files omitted>" "/Users/derekwardlaw/mmx/target/release/deps/{libmmx_core-16181426bfb0b48a,libregex-679afede1a2b95d9,libregex_automata-ba3d01ef49f6607a,libaho_corasick-9afc048d6958a1a7,libregex_syntax-ee04448ca367d689,libserde_json-ed765e6ebbf24cf1,libryu-8e9a57cd117eab1e,libserde-a3a60d6a647607af,libserde_core-36ad176e26b2391e,libgstreamer-a20747684430be5f,libcfg_if-6ccdee5b9e023f06,liboption_operations-04e9036d63c317a3,libmuldiv-3ba848ea18fb3393,libitertools-45b3d1cc3d2a9871,libeither-b614e94620d7b400,libnum_rational-1035e3e8c5521dda,libnum_integer-c3c8d21bead6d60e,libnum_traits-de5ccae0bcc0973e,libonce_cell-4eccfec4f7e513bc,libglib-f100be0db5d8cfb4,libfutures_executor-e0b8b517229b29b4,libmemchr-cfd0c617cc77dcd0,libsmallvec-173b6454a829f0cb,libgio_sys-fe1cab2fc7ed05e8,libthiserror-f48be13dd1032801,libfutures_util-dde62bd48faa099b,libslab-e7708a239adad2f0,libpin_project_lite-eac0cf1637079698,libpin_utils-93aa3323200e609c,libfutures_task-4a3ac2e5c37c6919,libfutures_channel-a6075493307ccf94,libfutures_core-8b809e087f1f5c46,libbitflags-114d993396c4926c,libgstreamer_sys-829d407c880f5a1a,libgobject_sys-07a953a5e284f288,libglib_sys-397576df45bab5b0,liblibc-77e5b0ffab30f013,libtime-6e3b570135d51400,libitoa-d85ed39cac31306c,libtime_core-b84b4518f43b3da4,libnum_conv-860c2773613e5c4f,libderanged-47c1b9331a68f28d,libpowerfmt-d4e7dd0574f7c7ae,libclap-a1ce2271d6b1b51b,libclap_builder-d330b9bda371f9a2,libstrsim-26edf6463033d49a,libanstream-3d03804adbd35033,libanstyle_query-4ae2e058c32ce161,libis_terminal_polyfill-7525e3c48041c160,libcolorchoice-cb344a6494ddca21,libanstyle_parse-b342504f8d7ca3cd,libutf8parse-b29f5b72549d2f8b,libclap_lex-2ba2f0f9b3c067f8,libanstyle-55190064949d1d0f,libanyhow-acd0c6a9ab8916c5}.rlib" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,libcfg_if-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-lgstreamer-1.0" "-lgobject-2.0" "-lgio-2.0" "-lgobject-2.0" "-lglib-2.0" "-lintl" "-lgstreamer-1.0" "-lgobject-2.0" "-lglib-2.0" "-lintl" "-lgobject-2.0" "-lglib-2.0" "-lintl" "-lgobject-2.0" "-lglib-2.0" "-lintl" "-liconv" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "/usr/local/Cellar/glib/2.86.0/lib" "-L" "/usr/local/opt/gettext/lib" "-L" "/usr/local/Cellar/glib/2.86.0/lib" "-L" "/usr/local/opt/gettext/lib" "-L" "/usr/local/Cellar/glib/2.86.0/lib" "-L" "/usr/local/opt/gettext/lib" "-L" "/usr/local/Cellar/glib/2.86.0/lib" "-L" "/usr/local/opt/gettext/lib" "-L" "/usr/local/Cellar/gstreamer/1.26.5_5/lib" "-L" "/usr/local/Cellar/glib/2.86.0/lib" "-L" "/usr/local/opt/gettext/lib" "-L" "/usr/local/Cellar/gstreamer/1.26.5_5/lib" "-L" "/usr/local/Cellar/glib/2.86.0/lib" "-L" "/usr/local/opt/gettext/lib" "-L" "/usr/local/Cellar/gstreamer/1.26.5_5/lib" "-L" "/usr/local/Cellar/glib/2.86.0/lib" "-L" "/usr/local/opt/gettext/lib" "-L" "/usr/local/Cellar/gstreamer/1.26.5_5/lib" "-L" "/usr/local/Cellar/glib/2.86.0/lib" "-L" "/usr/local/opt/gettext/lib" "-L" "/usr/local/Cellar/gstreamer/1.26.5_5/lib" "-L" "/usr/local/Cellar/glib/2.86.0/lib" "-L" "/usr/local/opt/gettext/lib" "-o" "/Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f" "-Wl,-dead_strip" "-nodefaultlibs" "-v"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: Apple clang version 17.0.0 (clang-1700.3.19.1)
+          Target: arm64-apple-darwin24.6.0
+          Thread model: posix
+          InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
+           "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld" -demangle -lto_library /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/libLTO.dylib -dynamic -arch arm64 -platform_version macos 11.0.0 26.0 -syslibroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -mllvm -enable-linkonceodr-outlining -o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f -L/usr/local/Cellar/glib/2.86.0/lib -L/usr/local/opt/gettext/lib -L/usr/local/Cellar/glib/2.86.0/lib -L/usr/local/opt/gettext/lib -L/usr/local/Cellar/glib/2.86.0/lib -L/usr/local/opt/gettext/lib -L/usr/local/Cellar/glib/2.86.0/lib -L/usr/local/opt/gettext/lib -L/usr/local/Cellar/gstreamer/1.26.5_5/lib -L/usr/local/Cellar/glib/2.86.0/lib -L/usr/local/opt/gettext/lib -L/usr/local/Cellar/gstreamer/1.26.5_5/lib -L/usr/local/Cellar/glib/2.86.0/lib -L/usr/local/opt/gettext/lib -L/usr/local/Cellar/gstreamer/1.26.5_5/lib -L/usr/local/Cellar/glib/2.86.0/lib -L/usr/local/opt/gettext/lib -L/usr/local/Cellar/gstreamer/1.26.5_5/lib -L/usr/local/Cellar/glib/2.86.0/lib -L/usr/local/opt/gettext/lib -L/usr/local/Cellar/gstreamer/1.26.5_5/lib -L/usr/local/Cellar/glib/2.86.0/lib -L/usr/local/opt/gettext/lib -L/usr/local/lib /var/folders/kh/_jfld9zx3j78t5fjj9qc2v4m0000gn/T/rustcYPg3tQ/symbols.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.00.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.01.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.02.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.03.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.04.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.05.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.06.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.07.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.08.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.09.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.10.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.11.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.12.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.13.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.14.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.mmx.68fc524feee65da5-cgu.15.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/mmx-61fc4fa75c5c666f.2lwkyklktxuhc4nlplnkn3i8f.rcgu.o /Users/derekwardlaw/mmx/target/release/deps/libmmx_core-16181426bfb0b48a.rlib /Users/derekwardlaw/mmx/target/release/deps/libregex-679afede1a2b95d9.rlib /Users/derekwardlaw/mmx/target/release/deps/libregex_automata-ba3d01ef49f6607a.rlib /Users/derekwardlaw/mmx/target/release/deps/libaho_corasick-9afc048d6958a1a7.rlib /Users/derekwardlaw/mmx/target/release/deps/libregex_syntax-ee04448ca367d689.rlib /Users/derekwardlaw/mmx/target/release/deps/libserde_json-ed765e6ebbf24cf1.rlib /Users/derekwardlaw/mmx/target/release/deps/libryu-8e9a57cd117eab1e.rlib /Users/derekwardlaw/mmx/target/release/deps/libserde-a3a60d6a647607af.rlib /Users/derekwardlaw/mmx/target/release/deps/libserde_core-36ad176e26b2391e.rlib /Users/derekwardlaw/mmx/target/release/deps/libgstreamer-a20747684430be5f.rlib /Users/derekwardlaw/mmx/target/release/deps/libcfg_if-6ccdee5b9e023f06.rlib /Users/derekwardlaw/mmx/target/release/deps/liboption_operations-04e9036d63c317a3.rlib /Users/derekwardlaw/mmx/target/release/deps/libmuldiv-3ba848ea18fb3393.rlib /Users/derekwardlaw/mmx/target/release/deps/libitertools-45b3d1cc3d2a9871.rlib /Users/derekwardlaw/mmx/target/release/deps/libeither-b614e94620d7b400.rlib /Users/derekwardlaw/mmx/target/release/deps/libnum_rational-1035e3e8c5521dda.rlib /Users/derekwardlaw/mmx/target/release/deps/libnum_integer-c3c8d21bead6d60e.rlib /Users/derekwardlaw/mmx/target/release/deps/libnum_traits-de5ccae0bcc0973e.rlib /Users/derekwardlaw/mmx/target/release/deps/libonce_cell-4eccfec4f7e513bc.rlib /Users/derekwardlaw/mmx/target/release/deps/libglib-f100be0db5d8cfb4.rlib /Users/derekwardlaw/mmx/target/release/deps/libfutures_executor-e0b8b517229b29b4.rlib /Users/derekwardlaw/mmx/target/release/deps/libmemchr-cfd0c617cc77dcd0.rlib /Users/derekwardlaw/mmx/target/release/deps/libsmallvec-173b6454a829f0cb.rlib /Users/derekwardlaw/mmx/target/release/deps/libgio_sys-fe1cab2fc7ed05e8.rlib /Users/derekwardlaw/mmx/target/release/deps/libthiserror-f48be13dd1032801.rlib /Users/derekwardlaw/mmx/target/release/deps/libfutures_util-dde62bd48faa099b.rlib /Users/derekwardlaw/mmx/target/release/deps/libslab-e7708a239adad2f0.rlib /Users/derekwardlaw/mmx/target/release/deps/libpin_project_lite-eac0cf1637079698.rlib /Users/derekwardlaw/mmx/target/release/deps/libpin_utils-93aa3323200e609c.rlib /Users/derekwardlaw/mmx/target/release/deps/libfutures_task-4a3ac2e5c37c6919.rlib /Users/derekwardlaw/mmx/target/release/deps/libfutures_channel-a6075493307ccf94.rlib /Users/derekwardlaw/mmx/target/release/deps/libfutures_core-8b809e087f1f5c46.rlib /Users/derekwardlaw/mmx/target/release/deps/libbitflags-114d993396c4926c.rlib /Users/derekwardlaw/mmx/target/release/deps/libgstreamer_sys-829d407c880f5a1a.rlib /Users/derekwardlaw/mmx/target/release/deps/libgobject_sys-07a953a5e284f288.rlib /Users/derekwardlaw/mmx/target/release/deps/libglib_sys-397576df45bab5b0.rlib /Users/derekwardlaw/mmx/target/release/deps/liblibc-77e5b0ffab30f013.rlib /Users/derekwardlaw/mmx/target/release/deps/libtime-6e3b570135d51400.rlib /Users/derekwardlaw/mmx/target/release/deps/libitoa-d85ed39cac31306c.rlib /Users/derekwardlaw/mmx/target/release/deps/libtime_core-b84b4518f43b3da4.rlib /Users/derekwardlaw/mmx/target/release/deps/libnum_conv-860c2773613e5c4f.rlib /Users/derekwardlaw/mmx/target/release/deps/libderanged-47c1b9331a68f28d.rlib /Users/derekwardlaw/mmx/target/release/deps/libpowerfmt-d4e7dd0574f7c7ae.rlib /Users/derekwardlaw/mmx/target/release/deps/libclap-a1ce2271d6b1b51b.rlib /Users/derekwardlaw/mmx/target/release/deps/libclap_builder-d330b9bda371f9a2.rlib /Users/derekwardlaw/mmx/target/release/deps/libstrsim-26edf6463033d49a.rlib /Users/derekwardlaw/mmx/target/release/deps/libanstream-3d03804adbd35033.rlib /Users/derekwardlaw/mmx/target/release/deps/libanstyle_query-4ae2e058c32ce161.rlib /Users/derekwardlaw/mmx/target/release/deps/libis_terminal_polyfill-7525e3c48041c160.rlib /Users/derekwardlaw/mmx/target/release/deps/libcolorchoice-cb344a6494ddca21.rlib /Users/derekwardlaw/mmx/target/release/deps/libanstyle_parse-b342504f8d7ca3cd.rlib /Users/derekwardlaw/mmx/target/release/deps/libutf8parse-b29f5b72549d2f8b.rlib /Users/derekwardlaw/mmx/target/release/deps/libclap_lex-2ba2f0f9b3c067f8.rlib /Users/derekwardlaw/mmx/target/release/deps/libanstyle-55190064949d1d0f.rlib /Users/derekwardlaw/mmx/target/release/deps/libanyhow-acd0c6a9ab8916c5.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libpanic_unwind-46750db6665333cd.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libobject-a967cb9870124ec9.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libmemchr-c4f054182976aa8c.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libaddr2line-6a6ef60951ca9fc3.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libgimli-8ef80ed926817f98.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/librustc_demangle-17c9272749ad8509.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd_detect-58144e4858d184c7.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libhashbrown-6406dbd58cbbde3f.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/librustc_std_workspace_alloc-2f0f0baf202969e4.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libminiz_oxide-7092aa97d4d8423b.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libadler2-174762b1f3c7d4a1.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libunwind-e858f8556a90d940.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcfg_if-13bddb24f8a48520.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/liblibc-d0f93df37175681d.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/librustc_std_workspace_core-f4b3dc294abba56e.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/liballoc-c3cfa44b482188b6.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib /opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcompiler_builtins-4fb5ae2e1823131f.rlib -lgstreamer-1.0 -lgobject-2.0 -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lintl -lgstreamer-1.0 -lgobject-2.0 -lglib-2.0 -lintl -lgobject-2.0 -lglib-2.0 -lintl -lgobject-2.0 -lglib-2.0 -lintl -liconv -lSystem -lc -lm -dead_strip
+          ld: warning: ignoring duplicate libraries: '-lglib-2.0', '-lgobject-2.0', '-lgstreamer-1.0', '-lintl'
+          ld: warning: ignoring file '/usr/local/Cellar/gstreamer/1.26.5_5/lib/libgstreamer-1.0.dylib': found architecture 'x86_64', required architecture 'arm64'
+          ld: warning: ignoring file '/usr/local/Cellar/glib/2.86.0/lib/libgobject-2.0.dylib': found architecture 'x86_64', required architecture 'arm64'
+          ld: warning: ignoring file '/usr/local/Cellar/glib/2.86.0/lib/libgio-2.0.dylib': found architecture 'x86_64', required architecture 'arm64'
+          ld: warning: ignoring file '/usr/local/Cellar/glib/2.86.0/lib/libglib-2.0.dylib': found architecture 'x86_64', required architecture 'arm64'
+          ld: warning: ignoring file '/usr/local/opt/gettext/lib/libintl.dylib': found architecture 'x86_64', required architecture 'arm64'
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[3](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.00.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[4](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.01.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[5](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.02.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[6](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.03.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[7](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.04.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[8](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.05.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[9](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.06.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[10](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.07.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[11](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.08.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[12](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.09.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[13](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.10.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[14](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.11.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[15](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.12.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[16](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.13.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[17](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.14.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libstd-5d79a5a9e0747e98.rlib[18](std-5d79a5a9e0747e98.std.c0fe66d2cecd3126-cgu.15.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libpanic_unwind-46750db6665333cd.rlib[3](panic_unwind-46750db6665333cd.panic_unwind.af733ba414e04e8-cgu.0.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libobject-a967cb9870124ec9.rlib[4](object-a967cb9870124ec9.object.dbc0c75c328f429f-cgu.1.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libobject-a967cb9870124ec9.rlib[6](object-a967cb9870124ec9.object.dbc0c75c328f429f-cgu.3.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libobject-a967cb9870124ec9.rlib[7](object-a967cb9870124ec9.object.dbc0c75c328f429f-cgu.4.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libobject-a967cb9870124ec9.rlib[8](object-a967cb9870124ec9.object.dbc0c75c328f429f-cgu.5.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libobject-a967cb9870124ec9.rlib[10](object-a967cb9870124ec9.object.dbc0c75c328f429f-cgu.7.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libaddr2line-6a6ef60951ca9fc3.rlib[3](addr2line-6a6ef60951ca9fc3.addr2line.23794bb2ad00ef1a-cgu.0.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libgimli-8ef80ed926817f98.rlib[5](gimli-8ef80ed926817f98.gimli.9083fd73c439a6c3-cgu.2.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libgimli-8ef80ed926817f98.rlib[6](gimli-8ef80ed926817f98.gimli.9083fd73c439a6c3-cgu.3.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/librustc_demangle-17c9272749ad8509.rlib[3](rustc_demangle-17c9272749ad8509.rustc_demangle.2ebe4cdf8b66fb12-cgu.0.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/librustc_demangle-17c9272749ad8509.rlib[4](rustc_demangle-17c9272749ad8509.rustc_demangle.2ebe4cdf8b66fb12-cgu.1.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/librustc_demangle-17c9272749ad8509.rlib[5](rustc_demangle-17c9272749ad8509.rustc_demangle.2ebe4cdf8b66fb12-cgu.2.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libhashbrown-6406dbd58cbbde3f.rlib[3](hashbrown-6406dbd58cbbde3f.hashbrown.fd770277b230e954-cgu.0.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/liballoc-c3cfa44b482188b6.rlib[3](alloc-c3cfa44b482188b6.alloc.87020fb9bebeb6ca-cgu.0.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/liballoc-c3cfa44b482188b6.rlib[4](alloc-c3cfa44b482188b6.alloc.87020fb9bebeb6ca-cgu.1.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/liballoc-c3cfa44b482188b6.rlib[5](alloc-c3cfa44b482188b6.alloc.87020fb9bebeb6ca-cgu.2.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/liballoc-c3cfa44b482188b6.rlib[6](alloc-c3cfa44b482188b6.alloc.87020fb9bebeb6ca-cgu.3.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/liballoc-c3cfa44b482188b6.rlib[7](alloc-c3cfa44b482188b6.alloc.87020fb9bebeb6ca-cgu.4.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/liballoc-c3cfa44b482188b6.rlib[8](alloc-c3cfa44b482188b6.alloc.87020fb9bebeb6ca-cgu.5.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/liballoc-c3cfa44b482188b6.rlib[9](alloc-c3cfa44b482188b6.alloc.87020fb9bebeb6ca-cgu.6.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[3](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.00.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[4](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.01.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[5](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.02.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[6](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.03.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[7](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.04.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[8](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.05.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[10](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.07.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[11](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.08.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[12](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.09.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[13](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.10.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[14](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.11.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[15](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.12.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[16](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.13.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[17](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.14.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcore-9ade5868bd946e45.rlib[18](core-9ade5868bd946e45.core.6b286e09bd6ee30f-cgu.15.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcompiler_builtins-4fb5ae2e1823131f.rlib[9](compiler_builtins-4fb5ae2e1823131f.compiler_builtins.fd32476da1c258cf-cgu.006.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcompiler_builtins-4fb5ae2e1823131f.rlib[108](compiler_builtins-4fb5ae2e1823131f.compiler_builtins.fd32476da1c258cf-cgu.105.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          ld: warning: object file (/opt/homebrew/Cellar/rust/1.90.0/lib/rustlib/aarch64-apple-darwin/lib/libcompiler_builtins-4fb5ae2e1823131f.rlib[171](compiler_builtins-4fb5ae2e1823131f.compiler_builtins.fd32476da1c258cf-cgu.168.rcgu.o)) was built for newer 'macOS' version (15.0) than being linked (11.0)
+          Undefined symbols for architecture arm64:
+            "_g_error_free", referenced from:
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                core::ptr::drop_in_place$LT$glib..error..Error$GT$::h0a62fab972d632ad in libmmx_core-16181426bfb0b48a.rlib[14](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.11.rcgu.o)
+                anyhow::error::object_drop::h14c37313fba73144 in libmmx_core-16181426bfb0b48a.rlib[14](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.11.rcgu.o)
+                anyhow::error::object_drop::h14c37313fba73144 in libmmx_core-16181426bfb0b48a.rlib[14](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.11.rcgu.o)
+                anyhow::error::object_reallocate_boxed::he716b6f919d7d0e4 in libmmx_core-16181426bfb0b48a.rlib[14](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.11.rcgu.o)
+                core::ptr::drop_in_place$LT$glib..error..Error$GT$::h0a62fab972d632ad in libmmx_core-16181426bfb0b48a.rlib[16](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.13.rcgu.o)
+                ...
+            "_g_free", referenced from:
+                core::ptr::drop_in_place$LT$glib..gstring..GString$GT$::hf6371197a7b54409 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+            "_g_object_ref", referenced from:
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+            "_g_object_ref_sink", referenced from:
+                gstreamer::auto::functions::parse_launch::hc4a0599f748182de in libgstreamer-a20747684430be5f.rlib[14](gstreamer-a20747684430be5f.gstreamer.ee08c18068562eb2-cgu.11.rcgu.o)
+                gstreamer::pipeline::_$LT$impl$u20$gstreamer..auto..pipeline..Pipeline$GT$::new::hea6b4d2ac746be91 in libgstreamer-a20747684430be5f.rlib[15](gstreamer-a20747684430be5f.gstreamer.ee08c18068562eb2-cgu.12.rcgu.o)
+            "_g_object_unref", referenced from:
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                ...
+            "_g_quark_to_string", referenced from:
+                _$LT$glib..quark..Quark$u20$as$u20$core..fmt..Debug$GT$::fmt::hda80079b29a17ad1 in libglib-f100be0db5d8cfb4.rlib[17](glib-f100be0db5d8cfb4.glib.c2e9dac5c7b17e46-cgu.14.rcgu.o)
+            "_g_type_is_a", referenced from:
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+            "_gst_bin_add", referenced from:
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+            "_gst_bus_timed_pop", referenced from:
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+            "_gst_element_get_bus", referenced from:
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+            "_gst_element_query_duration", referenced from:
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+            "_gst_element_query_position", referenced from:
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+            "_gst_element_set_state", referenced from:
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+            "_gst_init_check", referenced from:
+                gstreamer::init::h2687c3eec7d2294e in libgstreamer-a20747684430be5f.rlib[4](gstreamer-a20747684430be5f.gstreamer.ee08c18068562eb2-cgu.01.rcgu.o)
+            "_gst_is_initialized", referenced from:
+                gstreamer::assert_initialized::hbfd00b29857f7d63 in libgstreamer-a20747684430be5f.rlib[4](gstreamer-a20747684430be5f.gstreamer.ee08c18068562eb2-cgu.01.rcgu.o)
+            "_gst_message_parse_error", referenced from:
+                gstreamer::message::Error::error::h8fe99d9688540fe7 in libgstreamer-a20747684430be5f.rlib[3](gstreamer-a20747684430be5f.gstreamer.ee08c18068562eb2-cgu.00.rcgu.o)
+                gstreamer::message::Error::debug::h1bd84d03a4333c45 in libgstreamer-a20747684430be5f.rlib[3](gstreamer-a20747684430be5f.gstreamer.ee08c18068562eb2-cgu.00.rcgu.o)
+            "_gst_mini_object_unref", referenced from:
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+            "_gst_parse_launch", referenced from:
+                gstreamer::auto::functions::parse_launch::hc4a0599f748182de in libgstreamer-a20747684430be5f.rlib[14](gstreamer-a20747684430be5f.gstreamer.ee08c18068562eb2-cgu.11.rcgu.o)
+            "_gst_pipeline_get_type", referenced from:
+                _$LT$mmx_core..backend_gst..GstBackend$u20$as$u20$mmx_core..backend..Backend$GT$::run::h8fc856a4c85c4015 in libmmx_core-16181426bfb0b48a.rlib[4](mmx_core-16181426bfb0b48a.mmx_core.f567e245f1dfe961-cgu.01.rcgu.o)
+            "_gst_pipeline_new", referenced from:
+                gstreamer::pipeline::_$LT$impl$u20$gstreamer..auto..pipeline..Pipeline$GT$::new::hea6b4d2ac746be91 in libgstreamer-a20747684430be5f.rlib[15](gstreamer-a20747684430be5f.gstreamer.ee08c18068562eb2-cgu.12.rcgu.o)
+          ld: symbol(s) not found for architecture arm64
+          clang: error: linker command failed with exit code 1 (use -v to see invocation)
+          
+
+error: could not compile `mmx-cli` (bin "mmx") due to 1 previous error

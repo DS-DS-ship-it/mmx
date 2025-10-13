@@ -1,0 +1,109 @@
+name: Auto onboard from "Join program" issue
+on:
+  issues:
+    types: [opened, labeled]
+permissions:
+  contents: write
+  issues: write
+jobs:
+  onboard:
+    if: |
+      contains(github.event.issue.labels.*.name, 'onboarding')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Parse form fields
+        id: parse
+        run: |
+          TITLE="${{ github.event.issue.title }}"
+          BODY=$(jq -r '.issue.body' <<<"${{ toJson(github.event) }}")
+          # Extract YAML-form issue answers (common formats)
+          email=$(printf "%s" "$BODY" | sed -nE 's/.*Contact email.*\n\n([^ \n]+).*/\1/p' | head -1)
+          stripe=$(printf "%s" "$BODY" | sed -nE 's/.*Stripe account email.*\n\n([^ \n]+).*/\1/p' | head -1)
+          country=$(printf "%s" "$BODY" | sed -nE 's/.*Country.*\n\n([^ \n]+).*/\1/p' | head -1)
+          # Fallbacks
+          [[ -z "$email" ]] && email="${{ github.event.issue.user.login }}@users.noreply.github.com"
+          [[ -z "$country" ]] && country="US"
+          gh_user="${{ github.event.issue.user.login }}"
+          echo "email=$email"   >> $GITHUB_OUTPUT
+          echo "stripe=$stripe" >> $GITHUB_OUTPUT
+          echo "country=$country" >> $GITHUB_OUTPUT
+          echo "gh_user=$gh_user" >> $GITHUB_OUTPUT
+      - name: Ensure mapping file
+        run: test -f .github/contributors.json || echo '{}' > .github/contributors.json
+      - name: Lookup mapping
+        id: map
+        run: |
+          ACCT=$(jq -r --arg gh "${{ steps.parse.outputs.gh_user }}" '.[$gh] // empty' .github/contributors.json)
+          echo "acct=$ACCT" >> $GITHUB_OUTPUT
+      - name: Create Stripe account if missing
+        id: acct
+        if: steps.map.outputs.acct == ''
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          EMAIL="${{ steps.parse.outputs.email }}"
+          COUNTRY="${{ steps.parse.outputs.country }}"
+          RES=$(curl -sS https://api.stripe.com/v1/accounts \
+            -u "$STRIPE_SECRET_KEY:" \
+            -d type=express \
+            -d "country=$COUNTRY" \
+            -d "email=$EMAIL")
+          echo "$RES" | jq .
+          ACCT_ID=$(echo "$RES" | jq -r .id)
+          [[ -z "$ACCT_ID" || "$ACCT_ID" == "null" ]] && { echo "❌ fail create acct"; exit 1; }
+          echo "acct_id=$ACCT_ID" >> $GITHUB_OUTPUT
+      - name: Use existing acct if present
+        id: acct2
+        if: steps.map.outputs.acct != ''
+        run: echo "acct_id=${{ steps.map.outputs.acct }}" >> $GITHUB_OUTPUT
+      - name: Create onboarding link
+        id: link
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        run: |
+          ACCT="${{ steps.acct.outputs.acct_id || steps.acct2.outputs.acct_id }}"
+          RES=$(curl -sS https://api.stripe.com/v1/account_links \
+            -u "$STRIPE_SECRET_KEY:" \
+            -d account="$ACCT" \
+            -d type=account_onboarding \
+            -d refresh_url="https://github.com/${{ github.repository }}/issues/${{ github.event.issue.number }}" \
+            -d return_url="https://github.com/${{ github.repository }}/issues/${{ github.event.issue.number }}")
+          URL=$(echo "$RES" | jq -r .url)
+          [[ -z "$URL" || "$URL" == "null" ]] && { echo "❌ fail create link"; echo "$RES"; exit 1; }
+          echo "url=$URL" >> $GITHUB_OUTPUT
+      - name: Save mapping (only if new)
+        if: steps.map.outputs.acct == ''
+        run: |
+          ACCT="${{ steps.acct.outputs.acct_id }}"
+          GH="${{ steps.parse.outputs.gh_user }}"
+          tmp=$(mktemp)
+          jq --arg gh "$GH" --arg acct "$ACCT" '.[$gh]=$acct' .github/contributors.json > "$tmp"
+          mv "$tmp" .github/contributors.json
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add .github/contributors.json && git commit -m "chore(contrib): map $GH -> $ACCT" || true
+          git push || true
+      - name: Comment link
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = `${{ toJson(steps.link.outputs.url) }}`.replace(/^"|"$/g,"");
+            const body = [
+              "Thanks for applying! 🎉",
+              "",
+              "**Onboarding link (Stripe Connect Express):**",
+              url,
+              "",
+              "Complete KYC and you’ll be eligible for payouts.",
+              "",
+              "_Note: no passwords/keys in GitHub. Work in small PRs; CI must pass._"
+            ].join("\n");
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body
+            });

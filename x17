@@ -1,0 +1,46 @@
+cd ~/mmx || { echo "❌ ~/mmx not found"; exit 1; }
+
+OK=1
+
+# 1) README present
+test -f README.md && echo "✅ README.md exists" || { echo "❌ README.md missing"; OK=0; }
+
+# 2) Placeholder replaced
+if grep -q "__TAP__" README.md; then
+  echo "❌ __TAP__ placeholder still present in README.md"
+  OK=0
+else
+  echo "✅ Tap placeholder replaced"
+fi
+
+# 3) Code fences/backticks present literally
+if grep -q '^```bash$' README.md && grep -q 'mmx-remux in.mp4 out.mkv' README.md; then
+  echo "✅ Code fences/backticks preserved as text"
+else
+  echo "❌ Expected code fence or inline backticks not found"
+  OK=0
+fi
+
+# 4) Show the Homebrew block so you can eyeball it
+echo
+echo "── Homebrew block preview ──"
+awk '/^### Homebrew/,/^```$/' README.md
+echo "────────────────────────────"
+echo
+
+# 5) Release checklist present
+test -f RELEASE_CHECKLIST.md && echo "✅ RELEASE_CHECKLIST.md exists" || { echo "❌ RELEASE_CHECKLIST.md missing"; OK=0; }
+
+# 6) If this repo is git-initialized, show the last commit that added the docs
+if [ -d .git ]; then
+  echo
+  echo "── Git status ──"
+  git status --porcelain=v1
+  echo
+  echo "── Last commit ──"
+  git log -1 --oneline
+fi
+
+# Summary
+echo
+[ "$OK" -eq 1 ] && echo "🎉 Looks good." || echo "⚠️ See issues above."
