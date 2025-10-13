@@ -1,0 +1,17 @@
+name: Feature request
+description: Suggest an improvement or capability
+labels: ["enhancement"]
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: One-line summary
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What success looks like

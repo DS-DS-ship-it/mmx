@@ -1,0 +1,22 @@
+name: Sample intake (files that fail / test inputs)
+description: Provide media that breaks, or samples to test against
+labels: ["samples", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Drag-and-drop files here (small) or link to cloud storage. No secrets.
+  - type: input
+    id: input_container
+    attributes:
+      label: Container (e.g., mp4/mkv/webm)
+  - type: textarea
+    id: repro
+    attributes:
+      label: Repro steps
+      description: What you ran and what happened
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Output
+      description: Paste error text if any
