@@ -10,25 +10,21 @@ permissions:
 
 jobs:
   reply:
+    if: github.event_name == 'issues'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@v7
         with:
           script: |
-            const {context, github} = require('@actions/github');
-            const {eventName, payload} = context;
-
-            // Determine if this should fire:
-            // - When opened AND the issue has 'onboarding' label at creation
-            // - OR when labeled with 'onboarding'
-            const labels = (payload.issue.labels || []).map(l => (typeof l === 'string' ? l : l.name));
-            const isOpened = eventName === 'issues' && payload.action === 'opened';
-            const isLabeled = eventName === 'issues' && payload.action === 'labeled';
-            const newLabel = isLabeled ? (payload.label?.name || '') : '';
-
+            // 'github', 'context', and 'core' are provided by actions/github-script
+            const action = context.payload.action;
+            const isOpened  = action === 'opened';
+            const isLabeled = action === 'labeled';
+            const newLabel  = isLabeled ? (context.payload.label?.name || '') : '';
+            const labels    = (context.payload.issue.labels || []).map(l => (typeof l === 'string' ? l : l.name));
             const hasOnboarding = labels.includes('onboarding') || newLabel === 'onboarding';
             if (!hasOnboarding) {
-              core.info('Issue is not onboarding; skipping.');
+              core.info('Not an onboarding issue; skipping.');
               return;
             }
 
@@ -51,6 +47,6 @@ jobs:
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo:  context.repo.repo,
-              issue_number: payload.issue.number,
+              issue_number: context.payload.issue.number,
               body
             });
