@@ -1,3 +1,19 @@
-.env
-logs/
-dist/*.tar.gz
+# Python / build
+__pycache__/
+*.py[cod]
+*.egg-info/
+.build/
+build/
+dist/
+*.spec
+# venvs
+.venv/
+venv/
+# macOS
+.DS_Store
+
+# build artifacts
+artifacts/
+dist/
+build/
+__pycache__/
