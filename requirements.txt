@@ -1,0 +1,5 @@
+PyQt6
+opencv-python
+numpy
+PyAV; python_version >= "3.8"
+sounddevice; sys_platform != "darwin" or platform_system == "Windows"

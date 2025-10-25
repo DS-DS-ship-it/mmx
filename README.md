@@ -65,3 +65,22 @@ Replace `DS-DS-ship-it/mmx` and issue number, then paste the patch into a PR.
 Want to help build a native Rust remuxer (no FFmpeg) and get paid for merged work?
 **[Apply here →](https://github.com/DS-DS-ship-it/mmx/issues/new?template=join_program.yml)**
 
+# mmx video player
+
+A lightweight PyQt6 video player with a hex background, filter panel, and a **frame-accurate timeline**.
+
+## Run from source
+```bash
+python3 -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python video_gui_pro8.py
+
+Video Player:
+Linux (AppImage-like single file)
+python3 -m pip install -r requirements.txt
+pyinstaller --onefile --windowed --name mmx-video-player video_gui_pro8.py
+
+Windows (.exe)
+py -3 -m pip install -r requirements.txt
+pyinstaller --onefile --windowed --name mmx-video-player --icon icons\mmx.ico video_gui_pro8.py
+
