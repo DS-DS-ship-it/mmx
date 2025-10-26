@@ -1,0 +1,5 @@
+pyqt6
+av
+opencv-python
+sounddevice
+numpy
