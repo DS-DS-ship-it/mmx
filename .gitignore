@@ -17,3 +17,16 @@ artifacts/
 dist/
 build/
 __pycache__/
+
+# Ignore build/media artifacts
+artifacts/
+dist/
+build/
+__pycache__/
+*.mmxh
+*.wav
+*.mp3
+*.flac
+MMXHydra/in.wav
+MMXHydra/out_*.wav
+MMXHydra/*.mmxh
